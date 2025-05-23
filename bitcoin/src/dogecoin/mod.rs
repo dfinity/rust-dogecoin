@@ -1,3 +1,8 @@
+//! Dogecoin module.
+//!
+//! This module provides support for de/serialization, parsing and execution on data structures and
+//! network messages related to Dogecoin.
+
 use crate::block::Header;
 use crate::{io, BlockHash, Transaction};
 use crate::consensus::{encode, Decodable, Encodable};
@@ -16,7 +21,9 @@ fn is_auxpow(header: Header) -> bool {
 ///
 /// It contains the parent block's coinbase tx that can be verified to be in the parent block.
 /// The transaction's input contains the hash to the actual merge-mined block.
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
+#[derive(PartialEq, Eq, Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(crate = "actual_serde"))]
 pub struct AuxPow {
     /// The parent block's coinbase tx.
     pub coinbase_tx: Transaction,
