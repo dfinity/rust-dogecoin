@@ -1,13 +1,11 @@
 [package]
 name = "bitcoin"
-version = "0.32.7"
-authors = ["Andrew Poelstra <apoelstra@wpsoftware.net>"]
+version = "0.32.5-doge.0"
 license = "CC0-1.0"
-repository = "https://github.com/rust-bitcoin/rust-bitcoin/"
-documentation = "https://docs.rs/bitcoin/"
-description = "General purpose library for using and interoperating with Bitcoin."
+repository = "https://github.com/rust-dogecoin/rust-dogecoin/"
+description = "General purpose library for using and interoperating with Bitcoin and Dogecoin."
 categories = ["cryptography::cryptocurrencies"]
-keywords = [ "crypto", "bitcoin" ]
+keywords = [ "crypto", "bitcoin", "dogecoin"]
 readme = "../README.md"
 edition = "2021"
 rust-version = "1.56.1"
