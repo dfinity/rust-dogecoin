@@ -312,7 +312,9 @@ impl RawNetworkMessage {
     }
 
     /// Consumes the [RawNetworkMessage] instance and returns the inner payload.
-    pub fn into_payload(self) -> NetworkMessage { self.payload }
+    pub fn into_payload(self) -> NetworkMessage {
+        self.payload
+    }
 
     /// The actual message data
     pub fn payload(&self) -> &NetworkMessage { &self.payload }

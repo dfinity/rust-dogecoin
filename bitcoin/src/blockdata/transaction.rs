@@ -11,8 +11,8 @@
 //! This module provides the structures and functions needed to support transactions.
 //!
 
-use core::str::FromStr;
 use core::{cmp, fmt};
+use core::str::FromStr;
 
 use hashes::{sha256d, Hash};
 use internals::write_err;
@@ -539,19 +539,25 @@ impl FromStr for Sequence {
 impl TryFrom<&str> for Sequence {
     type Error = ParseIntError;
 
-    fn try_from(s: &str) -> Result<Self, Self::Error> { Sequence::from_str(s) }
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        Sequence::from_str(s)
+    }
 }
 
 impl TryFrom<String> for Sequence {
     type Error = ParseIntError;
 
-    fn try_from(s: String) -> Result<Self, Self::Error> { Sequence::from_str(&s) }
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        Sequence::from_str(&s)
+    }
 }
 
 impl TryFrom<Box<str>> for Sequence {
     type Error = ParseIntError;
 
-    fn try_from(s: Box<str>) -> Result<Self, Self::Error> { Sequence::from_str(&s) }
+    fn try_from(s: Box<str>) -> Result<Self, Self::Error> {
+        Sequence::from_str(&s)
+    }
 }
 
 /// Bitcoin transaction output.
