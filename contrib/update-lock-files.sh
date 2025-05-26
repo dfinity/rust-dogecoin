@@ -1,11 +1,16 @@
 #!/usr/bin/env bash
 #
 # Update the minimal/recent lock file
-
 set -euo pipefail
 
+if [[ "$(uname)" == "Darwin" ]]; then
+    CP="cp -f"
+else
+    CP="cp --force"
+fi
+
 for file in Cargo-minimal.lock Cargo-recent.lock; do
-    cp --force "$file" Cargo.lock
+    $CP "$file" Cargo.lock
     cargo check
-    cp --force Cargo.lock "$file"
+    $CP Cargo.lock "$file"
 done
