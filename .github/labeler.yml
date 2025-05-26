@@ -1,15 +1,18 @@
 ci:
   - changed-files:
-    - any-glob-to-any-file: .github/**
+      - any-glob-to-any-file: .github/**
+  - base-branch: [ 'doge-master' ]
 test:
   - changed-files:
-    - any-glob-to-any-file: fuzz/**
-    - any-glob-to-any-file: '*/tests/**'
-    - any-glob-to-any-file: 'dep_test'
-    - any-glob-to-any-file: 'contrib/run_task.sh'
-    - any-glob-to-any-file: 'contrib/test_vars.sh'
-    - any-glob-to-any-file: '*/contrib/extra_tests.sh'
-    - any-glob-to-any-file: '*/contrib/test_vars.sh'
+      - any-glob-to-any-file: fuzz/**
+      - any-glob-to-any-file: '*/tests/**'
+      - any-glob-to-any-file: 'dep_test'
+      - any-glob-to-any-file: 'contrib/run_task.sh'
+      - any-glob-to-any-file: 'contrib/test_vars.sh'
+      - any-glob-to-any-file: '*/contrib/extra_tests.sh'
+      - any-glob-to-any-file: '*/contrib/test_vars.sh'
+  - base-branch: [ 'doge-master' ]
 doc:
   - changed-files:
-    - any-glob-to-any-file: '**/*.md'
+      - any-glob-to-any-file: '**/*.md'
+  - base-branch: [ 'doge-master' ]
