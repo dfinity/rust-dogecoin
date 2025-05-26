@@ -3,7 +3,8 @@
 //! This module provides support for de/serialization, parsing and execution on data structures and
 //! network messages related to Dogecoin.
 
-use crate::block::{Header, TxMerkleNode};
+use crate::block::Header;
+use crate::block::TxMerkleNode;
 use crate::consensus::{encode, Decodable, Encodable};
 use crate::internal_macros::impl_consensus_encoding;
 use crate::io::{Read, Write};
@@ -13,7 +14,9 @@ use crate::{io, BlockHash, Transaction};
 /// AuxPow version bit, see <https://github.com/dogecoin/dogecoin/blob/d7cc7f8bbb5f790942d0ed0617f62447e7675233/src/primitives/pureheader.h#L23>
 pub const VERSION_AUXPOW: i32 = 1 << 8;
 
-fn is_auxpow(header: Header) -> bool { (header.version.to_consensus() & VERSION_AUXPOW) != 0 }
+fn is_auxpow(header: Header) -> bool {
+    (header.version.to_consensus() & VERSION_AUXPOW) != 0
+}
 
 /// Data for merge-mining AuxPoW.
 ///
@@ -78,7 +81,9 @@ pub struct Block {
 
 impl Block {
     /// Returns the block hash computed as SHA256d(header).
-    pub fn block_hash(&self) -> BlockHash { self.header.block_hash() }
+    pub fn block_hash(&self) -> BlockHash {
+        self.header.block_hash()
+    }
 }
 
 impl Decodable for Block {
