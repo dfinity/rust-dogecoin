@@ -2,6 +2,7 @@ on:
   push:
     branches:
       - master
+      - doge-master
       - 0.28.x
       - 0.29.x
       - 'test-ci/**'
