@@ -48,6 +48,7 @@ on:
   push:
     branches:
       - master
+      - doge-master
       - 'test-ci/**'
   pull_request:
 

@@ -1,8 +1,9 @@
 ---   # rust-bitcoin CI: If you edit this file please update README.md
-on:   # yamllint disable-line rule:truthy
+on: # yamllint disable-line rule:truthy
   push:
     branches:
       - master
+      - doge-master
       - 'test-ci/**'
   pull_request:
 
@@ -20,13 +21,13 @@ jobs:
         id: read_toolchain
         run: echo "nightly_version=$(cat nightly-version)" >> $GITHUB_OUTPUT
 
-  Stable:                       # 2 jobs, one per manifest.
+  Stable: # 2 jobs, one per manifest.
     name: Test - stable toolchain
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        dep: [minimal, recent]
+        dep: [ minimal, recent ]
     steps:
       - name: "Checkout repo"
         uses: actions/checkout@v4
@@ -43,14 +44,14 @@ jobs:
       - name: "Run test script"
         run: ./maintainer-tools/ci/run_task.sh stable
 
-  Nightly:                      # 2 jobs, one per manifest.
+  Nightly: # 2 jobs, one per manifest.
     name: Test - nightly toolchain
     needs: Prepare
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        dep: [minimal, recent]
+        dep: [ minimal, recent ]
     steps:
       - name: "Checkout repo"
         uses: actions/checkout@v4
@@ -69,13 +70,13 @@ jobs:
       - name: "Run test script"
         run: ./maintainer-tools/ci/run_task.sh nightly
 
-  MSRV:                         # 2 jobs, one per manifest.
+  MSRV: # 2 jobs, one per manifest.
     name: Test - MSRV toolchain
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        dep: [minimal, recent]
+        dep: [ minimal, recent ]
     steps:
       - name: "Checkout repo"
         uses: actions/checkout@v4
@@ -101,7 +102,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        dep: [recent]
+        dep: [ recent ]
     steps:
       - name: "Checkout repo"
         uses: actions/checkout@v4
@@ -128,7 +129,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        dep: [recent]
+        dep: [ recent ]
     steps:
       - name: "Checkout repo"
         uses: actions/checkout@v4
@@ -152,7 +153,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        dep: [recent]
+        dep: [ recent ]
     steps:
       - name: "Checkout repo"
         uses: actions/checkout@v4
@@ -178,7 +179,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        dep: [recent]
+        dep: [ recent ]
     steps:
       - name: "Checkout repo"
         uses: actions/checkout@v4
@@ -256,14 +257,14 @@ jobs:
       - name: "Run hashes/embedded with alloc"
         run: cd hashes/embedded && cargo run --target thumbv7m-none-eabi --features=alloc
 
-  ASAN:                         # hashes crate only.
+  ASAN: # hashes crate only.
     name: ASAN - nightly toolchain
     needs: Prepare
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        dep: [recent]
+        dep: [ recent ]
     steps:
       - name: "Checkout repo"
         uses: actions/checkout@v4
@@ -278,7 +279,7 @@ jobs:
       - name: "Run sanitizer script"
         run: cd ./hashes && ./contrib/sanitizer.sh
 
-  WASM:                         # hashes crate only.
+  WASM: # hashes crate only.
     name: WASM - stable toolchain
     runs-on: ubuntu-latest
     strategy:
