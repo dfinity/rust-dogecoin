@@ -10,7 +10,7 @@ use crate::io::{Read, Write};
 use crate::prelude::*;
 use crate::{io, BlockHash, Transaction};
 
-/// AuxPow version bit, see https://github.com/dogecoin/dogecoin/blob/d7cc7f8bbb5f790942d0ed0617f62447e7675233/src/primitives/pureheader.h#L23
+/// AuxPow version bit, see <https://github.com/dogecoin/dogecoin/blob/d7cc7f8bbb5f790942d0ed0617f62447e7675233/src/primitives/pureheader.h#L23>
 pub const VERSION_AUXPOW: i32 = 1 << 8;
 
 fn is_auxpow(header: Header) -> bool { (header.version.to_consensus() & VERSION_AUXPOW) != 0 }
