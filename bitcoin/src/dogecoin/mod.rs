@@ -235,7 +235,4 @@ mod tests {
             assert_eq!(serialize(&header.block_hash_with_scrypt()), test.output);
         }
     }
-
-    #[test]
-    fn target_exceeds_max_allowed_test() {}
 }
