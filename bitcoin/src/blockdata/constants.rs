@@ -89,7 +89,6 @@ fn bitcoin_genesis_tx(params: &Params) -> Transaction {
                 .push_slice(b"03/May/2024 000000000000000000001ebd58c244970b3aa9d783bb001011fbe8ea8e98e00e")
                 .into_script(),
                 script::Builder::new().push_slice(TESTNET4_GENESIS_OUTPUT_PK).push_opcode(OP_CHECKSIG).into_script(),
-
             ),
             _ => (
                 script::Builder::new()
@@ -177,6 +176,7 @@ pub fn genesis_block(params: impl AsRef<Params>) -> Block {
             },
             txdata,
         },
+        _ => unreachable!(),
     }
 }
 
@@ -219,6 +219,24 @@ impl ChainHash {
         6, 34, 110, 70, 17, 26, 11, 89, 202, 175, 18, 96, 67, 235, 91, 191, 40, 195, 79, 58, 94,
         51, 42, 31, 199, 178, 183, 60, 241, 136, 145, 15,
     ]);
+    /// `ChainHash` for mainnet dogecoin.
+    /// <https://github.com/dogecoin/dogecoin/blob/7237da74b8c356568644cbe4fba19d994704355b/src/chainparams.cpp#L160>
+    pub const DOGECOIN: Self = Self([
+        145, 86, 53, 44, 24, 24, 179, 46, 144, 201, 231, 146, 239, 214, 161, 26, 130, 254, 121, 86,
+        166, 48, 240, 59, 190, 226, 54, 206, 218, 227, 145, 26,
+    ]);
+    /// `ChainHash` for testnet dogecoin.
+    /// <https://github.com/dogecoin/dogecoin/blob/7237da74b8c356568644cbe4fba19d994704355b/src/chainparams.cpp#L320>
+    pub const DOGECOIN_TESTNET: Self = Self([
+        158, 85, 80, 115, 208, 196, 243, 100, 86, 219, 137, 81, 244, 73, 112, 77, 84, 77, 40, 38,
+        217, 170, 96, 99, 107, 64, 55, 70, 38, 120, 10, 187,
+    ]);
+    /// `ChainHash` for regtest dogecoin.
+    /// <https://github.com/dogecoin/dogecoin/blob/7237da74b8c356568644cbe4fba19d994704355b/src/chainparams.cpp#L450>
+    pub const DOGECOIN_REGTEST: Self = Self([
+        165, 115, 233, 28, 23, 114, 7, 108, 13, 64, 247, 14, 68, 8, 200, 58, 49, 112, 95, 41, 106,
+        230, 231, 98, 157, 74, 220, 181, 163, 96, 33, 61,
+    ]);
 
     /// Returns the hash of the `network` genesis block for use as a chain hash.
     ///
@@ -231,6 +249,9 @@ impl ChainHash {
             Network::Testnet4 => Self::TESTNET4,
             Network::Signet => Self::SIGNET,
             Network::Regtest => Self::REGTEST,
+            Network::Dogecoin => Self::DOGECOIN,
+            Network::DogecoinTestnet => Self::DOGECOIN_TESTNET,
+            Network::DogecoinRegtest => Self::DOGECOIN_REGTEST,
         }
     }
 
@@ -245,6 +266,9 @@ impl ChainHash {
             Network::Testnet4 => Self::TESTNET4,
             Network::Signet => Self::SIGNET,
             Network::Regtest => Self::REGTEST,
+            Network::Dogecoin => Self::DOGECOIN,
+            Network::DogecoinTestnet => Self::DOGECOIN_TESTNET,
+            Network::DogecoinRegtest => Self::DOGECOIN_REGTEST,
         }
     }
 
@@ -261,8 +285,9 @@ mod test {
     use hex::test_hex_unwrap as hex;
 
     use super::*;
-    use crate::consensus::params;
     use crate::consensus::encode::serialize;
+    use crate::consensus::params;
+    use crate::dogecoin::{dogecoin_genesis_block, dogecoin_genesis_tx};
 
     #[test]
     fn bitcoin_genesis_first_transaction() {
@@ -285,6 +310,29 @@ mod test {
         assert_eq!(
             gen.compute_wtxid().to_string(),
             "4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b"
+        );
+    }
+
+    #[test]
+    fn dogecoin_genesis_first_transaction() {
+        let gen = dogecoin_genesis_tx(&Params::DOGECOIN);
+
+        assert_eq!(gen.version, transaction::Version::ONE);
+        assert_eq!(gen.input.len(), 1);
+        assert_eq!(gen.input[0].previous_output.txid, Hash::all_zeros());
+        assert_eq!(gen.input[0].previous_output.vout, 0xFFFFFFFF);
+        assert_eq!(serialize(&gen.input[0].script_sig), hex!("1004ffff001d0104084e696e746f6e646f"));
+
+        assert_eq!(gen.input[0].sequence, Sequence::MAX);
+        assert_eq!(gen.output.len(), 1);
+        assert_eq!(serialize(&gen.output[0].script_pubkey),
+                   hex!("4341040184710fa689ad5023690c80f3a49c8f13f8d45b8c857fbcbc8bc4a8e4d3eb4b10f4d4604fa08dce601aaf0f470216fe1b51850b4acf21b179c45070ac7b03a9ac"));
+        assert_eq!(gen.output[0].value, Amount::from_str("88 BTC").unwrap());
+        assert_eq!(gen.lock_time, absolute::LockTime::ZERO);
+
+        assert_eq!(
+            gen.compute_wtxid().to_string(),
+            "5b2a3f53f605d62c53e62932dac6925e3d74afa5a4b459745c36d42d0ed26a69"
         );
     }
 
@@ -353,6 +401,62 @@ mod test {
         assert_eq!(
             gen.header.block_hash().to_string(),
             "00000008819873e925422c1ff0f99f7cc9bbb232af63a077a480a3633bee1ef6"
+        );
+    }
+
+    #[test]
+    fn dogecoin_genesis_full_block() {
+        let gen = dogecoin_genesis_block(&params::DOGECOIN);
+
+        assert_eq!(gen.header.version, block::Version::ONE);
+        assert_eq!(gen.header.prev_blockhash, Hash::all_zeros());
+        assert_eq!(
+            gen.header.merkle_root.to_string(),
+            "5b2a3f53f605d62c53e62932dac6925e3d74afa5a4b459745c36d42d0ed26a69"
+        );
+
+        assert_eq!(gen.header.time, 1386325540);
+        assert_eq!(gen.header.bits, CompactTarget::from_consensus(0x1e0ffff0));
+        assert_eq!(gen.header.nonce, 99943);
+        assert_eq!(
+            gen.header.block_hash().to_string(),
+            "1a91e3dace36e2be3bf030a65679fe821aa1d6ef92e7c9902eb318182c355691"
+        );
+    }
+
+    #[test]
+    fn dogecoin_testnet_genesis_full_block() {
+        let gen = dogecoin_genesis_block(&params::DOGECOIN_TESTNET);
+        assert_eq!(gen.header.version, block::Version::ONE);
+        assert_eq!(gen.header.prev_blockhash, Hash::all_zeros());
+        assert_eq!(
+            gen.header.merkle_root.to_string(),
+            "5b2a3f53f605d62c53e62932dac6925e3d74afa5a4b459745c36d42d0ed26a69"
+        );
+        assert_eq!(gen.header.time, 1391503289);
+        assert_eq!(gen.header.bits, CompactTarget::from_consensus(0x1e0ffff0));
+        assert_eq!(gen.header.nonce, 997879);
+        assert_eq!(
+            gen.header.block_hash().to_string(),
+            "bb0a78264637406b6360aad926284d544d7049f45189db5664f3c4d07350559e"
+        );
+    }
+
+    #[test]
+    fn dogecoin_signet_genesis_full_block() {
+        let gen = dogecoin_genesis_block(&params::DOGECOIN_REGTEST);
+        assert_eq!(gen.header.version, block::Version::ONE);
+        assert_eq!(gen.header.prev_blockhash, Hash::all_zeros());
+        assert_eq!(
+            gen.header.merkle_root.to_string(),
+            "5b2a3f53f605d62c53e62932dac6925e3d74afa5a4b459745c36d42d0ed26a69"
+        );
+        assert_eq!(gen.header.time, 1296688602);
+        assert_eq!(gen.header.bits, CompactTarget::from_consensus(0x207fffff));
+        assert_eq!(gen.header.nonce, 2);
+        assert_eq!(
+            gen.header.block_hash().to_string(),
+            "3d2160a3b5dc4a9d62e7e66a295f70313ac808440ef7400d6c0772171ce973a5"
         );
     }
 

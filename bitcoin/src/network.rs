@@ -34,7 +34,7 @@ use crate::prelude::*;
 /// What kind of network we are on.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum NetworkKind {
-    /// The Bitcoin mainnet network.
+    /// The Bitcoin or Dogecoin mainnet network.
     Main,
     /// Some kind of testnet network.
     Test,
@@ -52,8 +52,9 @@ impl From<Network> for NetworkKind {
         use Network::*;
 
         match n {
-            Bitcoin => NetworkKind::Main,
-            Testnet | Testnet4 | Signet | Regtest => NetworkKind::Test,
+            Bitcoin | Dogecoin => NetworkKind::Main,
+            Testnet | Testnet4 | Signet | Regtest | DogecoinTestnet | DogecoinRegtest =>
+                NetworkKind::Test,
         }
     }
 }
@@ -77,6 +78,12 @@ pub enum Network {
     Signet,
     /// Bitcoin's regtest network.
     Regtest,
+    /// Mainnet Dogecoin.
+    Dogecoin,
+    /// Dogecoin's testnet network.
+    DogecoinTestnet,
+    /// Dogecoin's regtest network.
+    DogecoinRegtest,
 }
 
 impl Network {
@@ -124,6 +131,9 @@ impl Network {
             Network::Testnet4 => "testnet4",
             Network::Signet => "signet",
             Network::Regtest => "regtest",
+            Network::Dogecoin => "doge_main",
+            Network::DogecoinTestnet => "doge_test",
+            Network::DogecoinRegtest => "doge_regtest",
         }
     }
 
@@ -185,6 +195,9 @@ impl Network {
             Network::Testnet4 => &Params::TESTNET4,
             Network::Signet => &Params::SIGNET,
             Network::Regtest => &Params::REGTEST,
+            Network::Dogecoin => &Params::MAINNET,
+            Network::DogecoinTestnet => &Params::TESTNET,
+            Network::DogecoinRegtest => &Params::REGTEST,
         }
     }
 
@@ -197,6 +210,9 @@ impl Network {
             Network::Testnet4 => "testnet4",
             Network::Signet => "signet",
             Network::Regtest => "regtest",
+            Network::Dogecoin => "dogecoin",
+            Network::DogecoinTestnet => "dogecoin_testnet",
+            Network::DogecoinRegtest => "dogecoin_regtest",
         }
     }
 }

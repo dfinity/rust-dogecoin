@@ -227,6 +227,13 @@ impl Magic {
     /// Bitcoin regtest network magic bytes.
     pub const REGTEST: Self = Self([0xFA, 0xBF, 0xB5, 0xDA]);
 
+    /// Dogecoin mainnet network magic bytes.
+    pub const DOGECOIN: Self = Self([0xC0, 0xC0, 0xC0, 0xC0]);
+    /// Dogecoin testnet network magic bytes.
+    pub const DOGECOIN_TESTNET: Self = Self([0xFC, 0xC1, 0xB7, 0xDC]);
+    /// Dogecoin regtest network magic bytes.
+    pub const DOGECOIN_REGTEST: Self = Self([0xFA, 0xBF, 0xB5, 0xDA]);
+
     /// Create network magic from bytes.
     pub fn from_bytes(bytes: [u8; 4]) -> Magic { Magic(bytes) }
 
@@ -259,6 +266,9 @@ impl From<Network> for Magic {
             Network::Testnet4 => Magic::TESTNET4,
             Network::Signet => Magic::SIGNET,
             Network::Regtest => Magic::REGTEST,
+            Network::Dogecoin => Magic::DOGECOIN,
+            Network::DogecoinTestnet => Magic::DOGECOIN_TESTNET,
+            Network::DogecoinRegtest => Magic::DOGECOIN_REGTEST,
         }
     }
 }
