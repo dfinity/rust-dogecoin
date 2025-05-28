@@ -34,6 +34,7 @@ hex_lit = "0.1.1"
 internals = { package = "bitcoin-internals", version = "0.3.0", features = ["alloc"] }
 io = { package = "bitcoin-io", version = "0.1.1", default-features = false, features = ["alloc"] }
 secp256k1 = { version = "0.29.0", default-features = false, features = ["hashes", "alloc"] }
+scrypt = { version = "0.11.0", default-features = false }
 units = { package = "bitcoin-units", version = "0.1.0", default-features = false, features = ["alloc"] }
 
 base64 = { version = "0.21.3", optional = true }

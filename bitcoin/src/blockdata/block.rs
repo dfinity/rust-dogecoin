@@ -12,6 +12,7 @@ use core::fmt;
 
 use hashes::{sha256d, Hash, HashEngine};
 use io::{Read, Write};
+use scrypt::{scrypt, Params as ScryptParams};
 
 use super::Weight;
 use crate::blockdata::script;
@@ -86,6 +87,20 @@ impl Header {
         BlockHash::from_engine(engine)
     }
 
+    /// Returns the block hash using the scrypt hash function.
+    pub fn block_hash_with_scrypt(&self) -> BlockHash {
+        let params = ScryptParams::new(10, 1, 1, 32).expect("invalid scrypt params");
+
+        let mut output = [0u8; 32];
+
+        let mut buf = Vec::new();
+        self.consensus_encode(&mut buf).expect("write to vec failed");
+
+        scrypt(buf.as_slice(), buf.as_slice(), &params, &mut output).unwrap();
+
+        BlockHash::from_slice(&output).unwrap()
+    }
+
     /// Computes the target (range [0, T] inclusive) that a blockhash must land in to be valid.
     pub fn target(&self) -> Target { self.bits.into() }
 
@@ -107,6 +122,23 @@ impl Header {
             return Err(ValidationError::BadTarget);
         }
         let block_hash = self.block_hash();
+        if target.is_met_by(block_hash) {
+            Ok(block_hash)
+        } else {
+            Err(ValidationError::BadProofOfWork)
+        }
+    }
+
+    /// Checks that the proof-of-work using scrypt is valid, returning the scrypt block hash.
+    pub fn validate_pow_with_scrypt(
+        &self,
+        required_target: Target,
+    ) -> Result<BlockHash, ValidationError> {
+        let target = self.target();
+        if target != required_target {
+            return Err(ValidationError::BadTarget);
+        }
+        let block_hash = self.block_hash_with_scrypt();
         if target.is_met_by(block_hash) {
             Ok(block_hash)
         } else {
