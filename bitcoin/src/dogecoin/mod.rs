@@ -3,32 +3,15 @@
 //! This module provides support for de/serialization, parsing and execution on data structures and
 //! network messages related to Dogecoin.
 
-use hashes::{sha256d, Hash};
-use units::Amount;
+mod constants;
+pub mod params;
 
 use crate::block::{Header, TxMerkleNode};
-use crate::consensus::{encode, Decodable, Encodable, Params};
+use crate::consensus::{encode, Decodable, Encodable};
 use crate::internal_macros::impl_consensus_encoding;
 use crate::io::{Read, Write};
-use crate::opcodes::all::OP_CHECKSIG;
 use crate::prelude::*;
-use crate::{
-    absolute, block, io, script, transaction, BlockHash, CompactTarget, Network, OutPoint,
-    Sequence, Transaction, TxIn, TxOut, Witness,
-};
-
-#[rustfmt::skip]
-const DOGECOIN_GENESIS_OUTPUT_PK: [u8; 65] = [
-    0x04,
-    0x01, 0x84, 0x71, 0x0f, 0xa6, 0x89, 0xad, 0x50,
-    0x23, 0x69, 0x0c, 0x80, 0xf3, 0xa4, 0x9c, 0x8f,
-    0x13, 0xf8, 0xd4, 0x5b, 0x8c, 0x85, 0x7f, 0xbc,
-    0xbc, 0x8b, 0xc4, 0xa8, 0xe4, 0xd3, 0xeb, 0x4b,
-    0x10, 0xf4, 0xd4, 0x60, 0x4f, 0xa0, 0x8d, 0xce,
-    0x60, 0x1a, 0xaf, 0x0f, 0x47, 0x02, 0x16, 0xfe,
-    0x1b, 0x51, 0x85, 0x0b, 0x4a, 0xcf, 0x21, 0xb1,
-    0x79, 0xc4, 0x50, 0x70, 0xac, 0x7b, 0x03, 0xa9
-];
+use crate::{io, BlockHash, Transaction};
 
 /// AuxPow version bit, see <https://github.com/dogecoin/dogecoin/blob/d7cc7f8bbb5f790942d0ed0617f62447e7675233/src/primitives/pureheader.h#L23>
 pub const VERSION_AUXPOW: i32 = 1 << 8;
@@ -131,86 +114,17 @@ impl Encodable for Block {
     }
 }
 
-/// Constructs and returns the coinbase (and only) transaction of the Dogecoin genesis block.
-pub fn dogecoin_genesis_tx(params: &Params) -> Transaction {
-    // Base
-    let mut ret = Transaction {
-        version: transaction::Version::ONE,
-        lock_time: absolute::LockTime::ZERO,
-        input: vec![],
-        output: vec![],
-    };
-
-    let (in_script, out_script) = {
-        match params.network {
-            Network::Dogecoin | Network::DogecoinTestnet | Network::DogecoinRegtest => (
-                script::Builder::new()
-                    .push_int(486604799)
-                    .push_int_non_minimal(4)
-                    .push_slice(b"Nintondo")
-                    .into_script(),
-                script::Builder::new()
-                    .push_slice(DOGECOIN_GENESIS_OUTPUT_PK)
-                    .push_opcode(OP_CHECKSIG)
-                    .into_script(),
-            ),
-            _ => unreachable!(),
-        }
-    };
-
-    ret.input.push(TxIn {
-        previous_output: OutPoint::null(),
-        script_sig: in_script,
-        sequence: Sequence::MAX,
-        witness: Witness::default(),
-    });
-    ret.output.push(TxOut { value: Amount::from_sat(88 * 100_000_000), script_pubkey: out_script });
-
-    // end
-    ret
-}
-
-/// Constructs and returns the genesis block.
-pub fn dogecoin_genesis_block(params: impl AsRef<Params>) -> crate::Block {
-    let params = params.as_ref();
-    let txdata = vec![dogecoin_genesis_tx(params)];
-    let hash: sha256d::Hash = txdata[0].compute_txid().into();
-    let merkle_root: crate::TxMerkleNode = hash.into();
-
-    match params.network {
-        Network::Dogecoin => crate::Block {
-            header: block::Header {
-                version: block::Version::ONE,
-                prev_blockhash: Hash::all_zeros(),
-                merkle_root,
-                time: 1386325540,
-                bits: CompactTarget::from_consensus(0x1e0ffff0),
-                nonce: 99943,
-            },
-            txdata,
-        },
-        Network::DogecoinTestnet => crate::Block {
-            header: block::Header {
-                version: block::Version::ONE,
-                prev_blockhash: Hash::all_zeros(),
-                merkle_root,
-                time: 1391503289,
-                bits: CompactTarget::from_consensus(0x1e0ffff0),
-                nonce: 997879,
-            },
-            txdata,
-        },
-        Network::DogecoinRegtest => crate::Block {
-            header: block::Header {
-                version: block::Version::ONE,
-                prev_blockhash: Hash::all_zeros(),
-                merkle_root,
-                time: 1296688602,
-                bits: CompactTarget::from_consensus(0x207fffff),
-                nonce: 2,
-            },
-            txdata,
-        },
-        _ => unreachable!(),
-    }
+/// The cryptocurrency network to act on.
+#[derive(Copy, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(crate = "actual_serde"))]
+#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
+#[non_exhaustive]
+pub enum Network {
+    /// Mainnet Dogecoin.
+    Dogecoin,
+    /// Dogecoin's testnet network.
+    Testnet,
+    /// Dogecoin's regtest network.
+    Regtest,
 }

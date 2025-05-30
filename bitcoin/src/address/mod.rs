@@ -205,7 +205,6 @@ impl KnownHrp {
             Bitcoin => Self::Mainnet,
             Testnet | Testnet4 | Signet => Self::Testnets,
             Regtest => Self::Regtest,
-            Dogecoin | DogecoinTestnet | DogecoinRegtest => todo!(),
         }
     }
 
