@@ -89,7 +89,7 @@ fn bitcoin_genesis_tx(params: &Params) -> Transaction {
                 .push_slice(b"03/May/2024 000000000000000000001ebd58c244970b3aa9d783bb001011fbe8ea8e98e00e")
                 .into_script(),
                 script::Builder::new().push_slice(TESTNET4_GENESIS_OUTPUT_PK).push_opcode(OP_CHECKSIG).into_script(),
-                
+
             ),
             _ => (
                 script::Builder::new()
