@@ -58,6 +58,7 @@ pub fn dogecoin_genesis_tx() -> Transaction {
 }
 
 /// Constructs and returns the genesis block.
+#[allow(dead_code)]
 pub fn genesis_block(params: impl AsRef<Params>) -> Block {
     let params = params.as_ref();
     let txdata = vec![dogecoin_genesis_tx()];

@@ -34,7 +34,7 @@ use crate::prelude::*;
 /// What kind of network we are on.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum NetworkKind {
-    /// The Bitcoin or Dogecoin mainnet network.
+    /// The Bitcoin mainnet network.
     Main,
     /// Some kind of testnet network.
     Test,
