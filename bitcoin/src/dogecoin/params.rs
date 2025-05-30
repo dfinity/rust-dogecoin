@@ -104,12 +104,11 @@ impl Params {
     };
 
     /// Creates parameters set for the given network.
-    pub const fn new(network: BitcoinNetwork) -> Self {
+    pub const fn new(network: Network) -> Self {
         match network {
-            BitcoinNetwork::Bitcoin => Params::MAINNET,
-            BitcoinNetwork::Testnet => Params::TESTNET,
-            BitcoinNetwork::Regtest => Params::REGTEST,
-            _ => unimplemented!(),
+            Network::Dogecoin => Params::MAINNET,
+            Network::Testnet => Params::TESTNET,
+            Network::Regtest => Params::REGTEST,
         }
     }
 }
