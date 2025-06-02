@@ -2,14 +2,8 @@ Copyright © 2025 DFINITY Foundation
 
 This project includes derivative work from the upstream [rust-bitcoin](https://github.com/rust-bitcoin/rust-bitcoin/tree/master) project.
 
-Licensing breakdown:
-
-- All code derived from rust-bitcoin is dual-licensed under:
-  - Apache License 2.0 (SPDX: Apache-2.0)
-  - Creative Commons Zero v1.0 Universal (SPDX: CC0-1.0)
-
-- All original code introduced in the /bitcoin/src/dogecoin module is licensed under:
-  - Apache License 2.0 (SPDX: Apache-2.0)
+All code derived from rust-bitcoin is licensed under Creative Commons Zero v1.0 Universal (SPDX: CC0-1.0).
+All original code introduced in the /bitcoin/src/dogecoin module is licensed under Apache License 2.0 (SPDX: Apache-2.0).
 
 You may use this project under either Apache-2.0 or CC0-1.0, as applicable to the parts of the code used.
 
