@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 //! Dogecoin module.
 //!
 //! This module provides support for de/serialization, parsing and execution on data structures and
