@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 //! Dogecoin consensus parameters.
 //!
 //! This module provides a predefined set of parameters for different Dogecoin

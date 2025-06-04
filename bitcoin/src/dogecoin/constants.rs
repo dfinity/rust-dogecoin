@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 use hashes::{sha256d, Hash};
 use units::Amount;
 
