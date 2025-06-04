@@ -216,8 +216,8 @@ Release notes are done per crate, see:
 
 ## Licensing
 
-This project is a derivative of [rust-bitcoin](https://github.com/rust-bitcoin/rust-bitcoin/tree/master) and respects its dual-licensing under Apache 2.0 and CC0.
+This project is a fork of [rust-bitcoin](https://github.com/rust-bitcoin/rust-bitcoin/tree/master), originally licensed under CC0 v1.0 Universal.
 
-All new code introduced in this repository is licensed under Apache 2.0. See the [LICENSE](./LICENSE) file for more information.
+This fork is licensed under the Apache License, Version 2.0, except where otherwise noted.
 
 We use the [SPDX license list](https://spdx.org/licenses/) and [SPDX IDs](https://spdx.dev/ids/).
