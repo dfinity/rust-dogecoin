@@ -8,8 +8,8 @@
 //!
 //! ```rust
 //! # #[cfg(feature = "rand-std")] {
-//! use bitcoin::dogecoin::{Address, PublicKey, Network};
-//! use bitcoin::secp256k1::{rand, Secp256k1};
+//! use bitcoin::dogecoin::{Address, Network};
+//! use bitcoin::{PublicKey, secp256k1::{rand, Secp256k1}};
 //!
 //! // Generate random key pair.
 //! let s = Secp256k1::new();
