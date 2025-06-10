@@ -177,6 +177,16 @@ impl core::str::FromStr for Network {
     }
 }
 
+impl AsRef<params::Params> for Network {
+    fn as_ref(&self) -> &params::Params {
+        match self {
+            Network::Dogecoin => &params::Params::MAINNET,
+            Network::Testnet => &params::Params::TESTNET,
+            Network::Regtest => &params::Params::REGTEST,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use hex::test_hex_unwrap as hex;
