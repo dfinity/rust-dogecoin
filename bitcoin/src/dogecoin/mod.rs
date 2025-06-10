@@ -91,6 +91,23 @@ impl Block {
 
     /// Returns the block hash using the scrypt hash function.
     pub fn block_hash_with_scrypt(&self) -> BlockHash { self.header.block_hash_with_scrypt() }
+
+    /// Checks if merkle root of header matches merkle root of the transaction list.
+    pub fn check_merkle_root(&self) -> bool {
+        match self.compute_merkle_root() {
+            Some(merkle_root) => self.header.merkle_root == merkle_root,
+            None => false,
+        }
+    }
+
+    /// Compute merkle root of the transaction list in this block.
+    pub fn compute_merkle_root(&self) -> Option<TxMerkleNode> {
+        let hashes = self
+            .txdata
+            .iter()
+            .map(|obj| obj.compute_txid().to_raw_hash());
+        crate::merkle_tree::calculate_root(hashes).map(|h| h.into())
+    }
 }
 
 impl Decodable for Block {
