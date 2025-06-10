@@ -130,6 +130,10 @@ impl GetBlocksMessage {
     pub fn new(locator_hashes: Vec<BlockHash>, stop_hash: BlockHash) -> GetBlocksMessage {
         GetBlocksMessage { version: p2p::PROTOCOL_VERSION, locator_hashes, stop_hash }
     }
+    /// Set the version number.
+    pub fn with_version(self, version: u32) -> Self {
+        Self { version, ..self }
+    }
 }
 
 impl_consensus_encoding!(GetBlocksMessage, version, locator_hashes, stop_hash);
@@ -138,6 +142,10 @@ impl GetHeadersMessage {
     /// Construct a new `getheaders` message
     pub fn new(locator_hashes: Vec<BlockHash>, stop_hash: BlockHash) -> GetHeadersMessage {
         GetHeadersMessage { version: p2p::PROTOCOL_VERSION, locator_hashes, stop_hash }
+    }
+    /// Set the version number.
+    pub fn with_version(self, version: u32) -> Self {
+        Self { version, ..self }
     }
 }
 
