@@ -5,11 +5,13 @@
 //! This module provides support for de/serialization, parsing and execution on data structures and
 //! network messages related to Dogecoin.
 
-mod constants;
+pub mod constants;
 pub mod params;
 
 use crate::block::{Header, TxMerkleNode};
 use crate::consensus::{encode, Decodable, Encodable};
+use crate::params::Params as BitcoinParams;
+use crate::dogecoin::params::Params;
 use crate::internal_macros::impl_consensus_encoding;
 use crate::io::{Read, Write};
 use crate::prelude::*;
@@ -132,6 +134,29 @@ pub enum Network {
     Testnet,
     /// Dogecoin's regtest network.
     Regtest,
+}
+
+impl Network {
+    /// Returns the associated network parameters.
+    pub const fn params(self) -> &'static Params {
+        match self {
+            Network::Dogecoin => &Params::DOGECOIN,
+            Network::Testnet => &Params::TESTNET,
+            Network::Regtest => &Params::REGTEST,
+        }
+    }
+}
+
+impl AsRef<BitcoinParams> for Network {
+    fn as_ref(&self) -> &BitcoinParams {
+        &Self::params(*self).bitcoin_params
+    }
+}
+
+impl AsRef<Params> for Network {
+    fn as_ref(&self) -> &Params {
+        &Self::params(*self)
+    }
 }
 
 #[cfg(test)]

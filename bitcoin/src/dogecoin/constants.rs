@@ -1,5 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
+//! Blockdata constants.
+//!
+//! This module provides various constants relating to the blockchain and
+//! consensus code. In particular, it defines the genesis block and its
+//! single transaction.
+//!
+
 use hashes::{sha256d, Hash};
 use units::Amount;
 
