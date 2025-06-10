@@ -19,10 +19,15 @@ use crate::prelude::*;
 use crate::{io, BlockHash, Transaction};
 use core::fmt;
 
+pub mod address;
+pub use address::*;
+
 /// AuxPow version bit, see <https://github.com/dogecoin/dogecoin/blob/d7cc7f8bbb5f790942d0ed0617f62447e7675233/src/primitives/pureheader.h#L23>
 pub const VERSION_AUXPOW: i32 = 1 << 8;
 
-fn is_auxpow(header: Header) -> bool { (header.version.to_consensus() & VERSION_AUXPOW) != 0 }
+fn is_auxpow(header: Header) -> bool {
+    (header.version.to_consensus() & VERSION_AUXPOW) != 0
+}
 
 /// Data for merge-mining AuxPoW.
 ///
@@ -87,7 +92,9 @@ pub struct Block {
 
 impl Block {
     /// Returns the block hash computed as SHA256d(header).
-    pub fn block_hash(&self) -> BlockHash { self.header.block_hash() }
+    pub fn block_hash(&self) -> BlockHash {
+        self.header.block_hash()
+    }
 
     /// Returns the block hash using the scrypt hash function.
     pub fn block_hash_with_scrypt(&self) -> BlockHash { self.header.block_hash_with_scrypt() }
@@ -331,7 +338,7 @@ mod tests {
             assert_eq!(serialize(&header.block_hash_with_scrypt()), test.output);
         }
     }
-    
+
     #[test]
     fn max_target_from_compact() {
         // The highest possible target in Dogecoin is defined as 0x1e0fffff

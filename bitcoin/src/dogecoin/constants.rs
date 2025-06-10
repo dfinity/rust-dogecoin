@@ -18,6 +18,13 @@ use crate::{
     TxMerkleNode, TxOut, Witness,
 };
 
+pub const PUBKEY_ADDRESS_PREFIX_MAINNET : u8 = 0x1e;
+pub const PUBKEY_ADDRESS_PREFIX_TESTNET : u8 = 0x71;
+pub const PUBKEY_ADDRESS_PREFIX_REGTEST : u8 = 0x6f;
+pub const SCRIPT_ADDRESS_PREFIX_MAINNET : u8 = 0x16;
+pub const SCRIPT_ADDRESS_PREFIX_TESTNET : u8 = 0xc4;
+pub const SCRIPT_ADDRESS_PREFIX_REGTEST : u8 = 0xc4;
+
 // This is the 65 byte (uncompressed) pubkey used as the one-and-only output of the genesis transaction.
 //
 // ref: https://github.com/dogecoin/dogecoin/blob/7237da74b8c356568644cbe4fba19d994704355b/src/chainparams.cpp#L55
