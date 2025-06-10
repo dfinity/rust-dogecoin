@@ -5,8 +5,11 @@
 //! This module provides support for de/serialization, parsing and execution on data structures and
 //! network messages related to Dogecoin.
 
+pub mod address;
 pub mod constants;
 pub mod params;
+
+pub use address::*;
 
 use crate::block::{Header, TxMerkleNode};
 use crate::consensus::{encode, Decodable, Encodable};
@@ -18,9 +21,6 @@ use crate::p2p::Magic;
 use crate::prelude::*;
 use crate::{io, BlockHash, Transaction};
 use core::fmt;
-
-pub mod address;
-pub use address::*;
 
 /// AuxPow version bit, see <https://github.com/dogecoin/dogecoin/blob/d7cc7f8bbb5f790942d0ed0617f62447e7675233/src/primitives/pureheader.h#L23>
 pub const VERSION_AUXPOW: i32 = 1 << 8;
