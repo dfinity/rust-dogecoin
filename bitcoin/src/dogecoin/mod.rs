@@ -16,6 +16,7 @@ use crate::internal_macros::impl_consensus_encoding;
 use crate::io::{Read, Write};
 use crate::prelude::*;
 use crate::{io, BlockHash, Transaction};
+use core::fmt;
 
 /// AuxPow version bit, see <https://github.com/dogecoin/dogecoin/blob/d7cc7f8bbb5f790942d0ed0617f62447e7675233/src/primitives/pureheader.h#L23>
 pub const VERSION_AUXPOW: i32 = 1 << 8;
@@ -150,6 +151,29 @@ impl Network {
 impl AsRef<BitcoinParams> for Network {
     fn as_ref(&self) -> &BitcoinParams {
         &Self::params(*self).bitcoin_params
+    }
+}
+
+impl fmt::Display for Network {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Network::Dogecoin => write!(f, "dogecoin"),
+            Network::Testnet => write!(f, "testnet"),
+            Network::Regtest => write!(f, "regtest"),
+        }
+    }
+}
+
+impl core::str::FromStr for Network {
+    type Err = crate::network::ParseNetworkError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "dogecoin" => Ok(Network::Dogecoin),
+            "testnet" => Ok(Network::Testnet),
+            "regtest" => Ok(Network::Regtest),
+            _ => Err(crate::network::ParseNetworkError(s.to_owned())),
+        }
     }
 }
 
