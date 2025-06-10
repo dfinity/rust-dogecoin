@@ -14,6 +14,7 @@ use crate::params::Params as BitcoinParams;
 use crate::dogecoin::params::Params;
 use crate::internal_macros::impl_consensus_encoding;
 use crate::io::{Read, Write};
+use crate::p2p::Magic;
 use crate::prelude::*;
 use crate::{io, BlockHash, Transaction};
 use core::fmt;
@@ -183,6 +184,17 @@ impl AsRef<params::Params> for Network {
             Network::Dogecoin => &params::Params::MAINNET,
             Network::Testnet => &params::Params::TESTNET,
             Network::Regtest => &params::Params::REGTEST,
+        }
+    }
+}
+
+impl Network {
+    /// Return the magic bytes for the given network.
+    pub fn magic(self) -> Magic {
+        match self {
+            Network::Dogecoin => Magic::from_bytes([0xC0, 0xC0, 0xC0, 0xC0]),
+            Network::Testnet => Magic::from_bytes([0xFC, 0xC1, 0xB7, 0xDC]),
+            Network::Regtest => Magic::from_bytes([0xFA, 0xBF, 0xB5, 0xDA]),
         }
     }
 }
