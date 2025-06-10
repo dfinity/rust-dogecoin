@@ -43,7 +43,6 @@ use crate::dogecoin::constants::{
     SCRIPT_ADDRESS_PREFIX_MAINNET, SCRIPT_ADDRESS_PREFIX_REGTEST, SCRIPT_ADDRESS_PREFIX_TESTNET,
 };
 use crate::dogecoin::Network;
-use crate::prelude::*;
 
 #[rustfmt::skip]                // Keep public re-exports separate.
 #[doc(inline)]
@@ -376,11 +375,6 @@ impl Address {
             P2pkh { ref hash, network: _ } => ScriptBuf::new_p2pkh(hash),
             P2sh { ref hash, network: _ } => ScriptBuf::new_p2sh(hash),
         }
-    }
-
-    /// Creates a URI string *bitcoin:address* optimized to be encoded in QR codes.
-    pub fn to_qr_uri(&self) -> String {
-        format!("bitcoin:{:#}", self)
     }
 
     /// Returns true if the given pubkey is directly related to the address payload.
