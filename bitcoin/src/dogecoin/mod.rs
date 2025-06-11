@@ -164,11 +164,26 @@ impl Network {
             Network::Regtest => &Params::REGTEST,
         }
     }
+
+    /// Return the magic bytes for the given network.
+    pub fn magic(self) -> Magic {
+        match self {
+            Network::Dogecoin => Magic::from_bytes([0xC0, 0xC0, 0xC0, 0xC0]),
+            Network::Testnet => Magic::from_bytes([0xFC, 0xC1, 0xB7, 0xDC]),
+            Network::Regtest => Magic::from_bytes([0xFA, 0xBF, 0xB5, 0xDA]),
+        }
+    }
 }
 
 impl AsRef<BitcoinParams> for Network {
     fn as_ref(&self) -> &BitcoinParams {
         &Self::params(*self).bitcoin_params
+    }
+}
+
+impl AsRef<Params> for Network {
+    fn as_ref(&self) -> &Params {
+        self.params()
     }
 }
 
@@ -191,27 +206,6 @@ impl core::str::FromStr for Network {
             "testnet" => Ok(Network::Testnet),
             "regtest" => Ok(Network::Regtest),
             _ => Err(crate::network::ParseNetworkError(s.to_owned())),
-        }
-    }
-}
-
-impl AsRef<params::Params> for Network {
-    fn as_ref(&self) -> &params::Params {
-        match self {
-            Network::Dogecoin => &params::Params::MAINNET,
-            Network::Testnet => &params::Params::TESTNET,
-            Network::Regtest => &params::Params::REGTEST,
-        }
-    }
-}
-
-impl Network {
-    /// Return the magic bytes for the given network.
-    pub fn magic(self) -> Magic {
-        match self {
-            Network::Dogecoin => Magic::from_bytes([0xC0, 0xC0, 0xC0, 0xC0]),
-            Network::Testnet => Magic::from_bytes([0xFC, 0xC1, 0xB7, 0xDC]),
-            Network::Regtest => Magic::from_bytes([0xFA, 0xBF, 0xB5, 0xDA]),
         }
     }
 }
