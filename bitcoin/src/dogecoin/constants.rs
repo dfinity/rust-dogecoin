@@ -18,12 +18,12 @@ use crate::{
     TxMerkleNode, TxOut, Witness,
 };
 
-pub const PUBKEY_ADDRESS_PREFIX_MAINNET : u8 = 0x1e;
-pub const PUBKEY_ADDRESS_PREFIX_TESTNET : u8 = 0x71;
-pub const PUBKEY_ADDRESS_PREFIX_REGTEST : u8 = 0x6f;
-pub const SCRIPT_ADDRESS_PREFIX_MAINNET : u8 = 0x16;
-pub const SCRIPT_ADDRESS_PREFIX_TESTNET : u8 = 0xc4;
-pub const SCRIPT_ADDRESS_PREFIX_REGTEST : u8 = 0xc4;
+pub(crate) const PUBKEY_ADDRESS_PREFIX_MAINNET : u8 = 0x1e;
+pub(crate) const PUBKEY_ADDRESS_PREFIX_TESTNET : u8 = 0x71;
+pub(crate) const PUBKEY_ADDRESS_PREFIX_REGTEST : u8 = 0x6f;
+pub(crate) const SCRIPT_ADDRESS_PREFIX_MAINNET : u8 = 0x16;
+pub(crate) const SCRIPT_ADDRESS_PREFIX_TESTNET : u8 = 0xc4;
+pub(crate) const SCRIPT_ADDRESS_PREFIX_REGTEST : u8 = 0xc4;
 
 // This is the 65 byte (uncompressed) pubkey used as the one-and-only output of the genesis transaction.
 //
