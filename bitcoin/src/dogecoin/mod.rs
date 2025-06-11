@@ -163,7 +163,6 @@ mod tests {
     use crate::{CompactTarget, Target, Work};
     use crate::params::{Params as BitcoinParams};
     use crate::{Network as BitcoinNetwork};
-    use float_cmp::approx_eq;
 
 
     #[test]
