@@ -316,6 +316,27 @@ impl Target {
     /// In line with Bitcoin Core this function may return a target value of zero.
     pub fn min_transition_threshold(&self) -> Self { Self(self.0 >> 2) }
 
+    /// Computes the minimum valid [`Target`] threshold allowed for a block in which a difficulty
+    /// adjustment occurs.
+    ///
+    /// The difficulty can only decrease by a factor of 4, 8, or 16 max on each difficulty
+    /// adjustment period, depending on the height.
+    /// 
+    /// ref: <https://github.com/dogecoin/dogecoin/blob/2c513d0172e8bc86fe9a337693b26f2fdf68a013/src/dogecoin.cpp#L57-L66>
+    ///
+    /// # Returns
+    ///
+    /// In line with Dogecoin Core this function may return a target value of zero.
+    pub fn min_transition_threshold_dogecoin(&self, height: u32) -> Self {
+        if height > 10000 {
+            Self(self.0 >> 2)
+        } else if height > 5000 {
+            Self(self.0 >> 3)
+        } else {
+            Self(self.0 >> 4)
+        }
+    }
+
     /// Computes the maximum valid [`Target`] threshold allowed for a block in which a difficulty
     /// adjustment occurs.
     ///
@@ -429,6 +450,44 @@ impl CompactTarget {
         retarget.to_compact_lossy()
     }
 
+    /// Computes the [`CompactTarget`] from a difficulty adjustment in Dogecoin.
+    ///
+    /// ref: <https://github.com/dogecoin/dogecoin/blob/51cbc1fd5d0d045dda2ad84f53572bbf524c6a8e/src/dogecoin.cpp>
+    ///
+    /// Given the previous Target, represented as a [`CompactTarget`], the difficulty is adjusted
+    /// by taking the timespan between them, and multipling the current [`CompactTarget`] by a factor
+    /// of the net timespan and expected timespan. The [`CompactTarget`] may not increase by more than
+    /// a factor of 4, adjust beyond the maximum threshold for the network, or decrease... TODO
+    ///
+    /// # Returns
+    ///
+    /// The expected [`CompactTarget`] recalculation.
+    pub fn from_next_work_required_dogecoin(
+        last: CompactTarget,
+        timespan: u64,
+        params: impl AsRef<Params>
+    ) -> CompactTarget {
+        let params = params.as_ref();
+        if params.no_pow_retargeting { 
+            return last;
+        }
+        // Comments relate to the `pow.cpp` file from Core.
+        // ref: <https://github.com/dogecoin/dogecoin/blob/51cbc1fd5d0d045dda2ad84f53572bbf524c6a8e/src/dogecoin.cpp>
+        let min_timespan = params.pow_target_timespan >> 4; // Lines 64
+        let max_timespan = params.pow_target_timespan << 2; // Lines 65
+        let actual_timespan = timespan.clamp(min_timespan, max_timespan); // Lines 69-72 nModulatedTimespan
+        let prev_target: Target = last.into();
+        let maximum_retarget = prev_target.max_transition_threshold(params); // bnPowLimit
+        let retarget = prev_target.0; // bnNew
+        let retarget = retarget.mul(actual_timespan.into());
+        let retarget = retarget.div(params.pow_target_timespan.into());
+        let retarget = Target(retarget);
+        if retarget.ge(&maximum_retarget) {
+            return maximum_retarget.to_compact_lossy();
+        }
+        retarget.to_compact_lossy()
+    }
+
     /// Computes the [`CompactTarget`] from a difficulty adjustment,
     /// assuming these are the relevant block headers.
     ///
@@ -455,6 +514,40 @@ impl CompactTarget {
         let timespan = current.time - last_epoch_boundary.time;
         let bits = current.bits;
         CompactTarget::from_next_work_required(bits, timespan.into(), params)
+    }
+
+    /// Computes the [`CompactTarget`] from a difficulty adjustment,
+    /// assuming these are the relevant block headers, in the Dogecoin network.
+    ///
+    /// Given two headers, representing the start and end of a difficulty adjustment epoch,
+    /// compute the [`CompactTarget`] based on the net time between them and the current
+    /// [`CompactTarget`].
+    ///
+    /// # Note
+    ///
+    /// See [`CompactTarget::from_next_work_required_dogecoin`].
+    /// 
+    /// Unlike Bitcoin, Dogecoin uses overlapping intervals (see Time Wrap Attack bug fix
+    /// introduced by Litecoin).
+    ///
+    /// For example, to successfully compute the first difficulty adjustments on the Dogecoin network,
+    /// one would pass the following headers:
+    ///     - `current`: Block 239, `last_epoch_boundary`: Block 0
+    ///     - `current`: Block 479, `last_epoch_boundary`: Block 239
+    ///     - `current`: Block 719, `last_epoch_boundary`: Block 479
+    ///     - `current`: Block 959, `last_epoch_boundary`: Block 719
+    ///
+    /// # Returns
+    ///
+    /// The expected [`CompactTarget`] recalculation.
+    pub fn from_header_difficulty_adjustment_dogecoin(
+        last_epoch_boundary: Header,
+        current: Header,
+        params: impl AsRef<Params>,
+    ) -> CompactTarget {
+        let timespan = current.time - last_epoch_boundary.time;
+        let bits = current.bits;
+        CompactTarget::from_next_work_required_dogecoin(bits, timespan.into(), params)
     }
 
     /// Creates a [`CompactTarget`] from a consensus encoded `u32`.

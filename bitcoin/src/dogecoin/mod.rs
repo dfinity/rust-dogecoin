@@ -160,11 +160,14 @@ mod tests {
     use super::*;
     use crate::block::{ValidationError, Version};
     use crate::consensus::encode::{deserialize, serialize};
-    use crate::{CompactTarget, Network, Target, Work};
+    use crate::{CompactTarget, Target, Work};
+    use crate::params::{Params as BitcoinParams};
+    use crate::{Network as BitcoinNetwork};
+    use float_cmp::approx_eq;
+
 
     #[test]
     fn dogecoin_block_test() {
-        let params = crate::consensus::Params::new(Network::Bitcoin);
         // Mainnet Dogecoin block 5794c80b80d9c33e0737a5353cd52b1f097f61d8d2b9f471e1702345080e0002
         let some_block = hex!("01000000c76fe7f8ec09989d32b7907966fbd347134f80a7b71efce55fec502aa126ba3894b3065289ff8ba1ab4e8391771174d47cf2c974ebd24a1bdafd6c107d5a7a207d78bb52de8f001c00da8c3c0201000000010000000000000000000000000000000000000000000000000000000000000000ffffffff2602bc6d062f503253482f047178bb5208f8042975030000000d2f7374726174756d506f6f6c2f000000000100629b29c45500001976a91450e9fe87c705dcd4b7523b47e3314c2115f5d5df88ac0000000001000000015f48fabf4425324df2b5e58f4e9c771297f76f5fa37db7556f6fc1d22742da1f010000006a473044022062d29d2d26f7d826e7b72257486e294d284832743c7803a2901eb07e326b25a002207efc391b0f4e724c9d518075c0e056cc425540f845b0fd419ba8a9d49d69288301210297a2568525760a98454d84f5e5adba9fd0a41726a6fb774ddc407279e41e2061ffffffff0240bab598200000001976a91401348a2b83aeb6b1ba2a174a1a40b7c75fbeb12088ac0040be40250000001976a914025407d928ef333979d064ae233353d80e29d58c88ac00000000");
         let cutoff_block = hex!("01000000c76fe7f8ec09989d32b7907966fbd347134f80a7b71efce55fec502aa126ba3894b3065289ff8ba1ab4e8391771174d47cf2c974ebd24a1bdafd6c107d5a7a207d78bb52de8f001c00da8c3c0201000000010000000000000000000000000000000000000000000000000000000000000000ffffffff2602bc6d062f503253482f047178bb5208f8042975030000000d2f7374726174756d506f6f6c2f000000000100629b29c45500001976a91450e9fe87c705dcd4b7523b47e3314c2115f5d5df88ac0000000001000000015f48fabf4425324df2b5e58f4e9c771297f76f5fa37db7556f6fc1d22742da1f010000006a473044022062d29d2d26f7d826e7b72257486e294d284832743c7803a2901eb07e326b25a002207efc391b0f4e724c9d518075c0e056cc425540f845b0fd419ba8a9d49d69288301210297a2568525760a98454d84f5e5adba9fd0a41726a6fb774ddc407279e41e2061ffffffff0240bab598200000001976a91401348a2b83aeb6b1ba2a174a1a40b7c75fbeb12088ac0040be40250000001976a914025407d928ef333979d064ae233353d80e29d58c88ac");
@@ -193,7 +196,9 @@ mod tests {
             real_decode.header.validate_pow_with_scrypt(real_decode.header.target()).unwrap(),
             real_decode.block_hash_with_scrypt()
         );
-        assert_eq!(real_decode.header.difficulty(&params), 455);
+        // Bitcoin parameters are used because Dogecoin's difficulty calculation is the same as Bitcoin,
+        // which depends on Bitcoin's `max_attainable_target` value
+        assert_eq!(real_decode.header.difficulty(&BitcoinParams::new(BitcoinNetwork::Bitcoin)), 455);
         assert_eq!(real_decode.header.difficulty_float(), 455.52430084170516);
 
         assert_eq!(serialize(&real_decode), some_block);
@@ -282,5 +287,125 @@ mod tests {
         let want = Target::MAX_ATTAINABLE_MAINNET_DOGE;
         let got = Target::from_compact(CompactTarget::from_consensus(bits));
         assert_eq!(got, want)
+    }
+
+    #[test]
+    fn compact_target_from_upwards_difficulty_adjustment() {
+        let params = Params::new(Network::Dogecoin);
+        let starting_bits = CompactTarget::from_consensus(0x1e0ffff0); // Genesis compact target on Mainnet
+        let start_time: u64 = 1386325540; // Genesis block unix time
+        let end_time: u64 = 1386475638; // Block 239 unix time
+        let timespan = end_time - start_time; // Slower than expected (150,098 seconds diff)
+        let adjustment = CompactTarget::from_next_work_required_dogecoin(starting_bits, timespan, &params);
+        let adjustment_bits = CompactTarget::from_consensus(0x1e0fffff); // Block 240 compact target
+        assert_eq!(adjustment, adjustment_bits);
+    }
+
+    #[test]
+    fn compact_target_from_downwards_difficulty_adjustment() {
+        let params = Params::new(Network::Dogecoin);
+        let starting_bits = CompactTarget::from_consensus(0x1e0fffff); // Block 240 compact target
+        let start_time: u64 = 1386475638; // Block 239 unix time
+        let end_time: u64 = 1386475840; // Block 479 unix time
+        let timespan = end_time - start_time; // Faster than expected (202 seconds diff)
+        let adjustment = CompactTarget::from_next_work_required_dogecoin(starting_bits, timespan, &params);
+        let adjustment_bits = CompactTarget::from_consensus(0x1e00ffff); // Block 480 compact target
+        assert_eq!(adjustment, adjustment_bits);
+    }
+
+    #[test]
+    fn compact_target_from_downwards_difficulty_adjustment_using_headers() {
+        use crate::{block::Version, dogecoin::constants::genesis_block, TxMerkleNode};
+        use hashes::Hash;
+        let params = Params::new(Network::Dogecoin);
+        let epoch_start = genesis_block(&params).header;
+        // Block 239, the only information used are `bits` and `time`
+        let current = Header {
+            version: Version::ONE,
+            prev_blockhash: BlockHash::all_zeros(),
+            merkle_root: TxMerkleNode::all_zeros(),
+            time: 1386475638,
+            bits: epoch_start.bits,
+            nonce: epoch_start.nonce
+        };
+        let adjustment = CompactTarget::from_header_difficulty_adjustment_dogecoin(epoch_start, current, params);
+        let adjustment_bits = CompactTarget::from_consensus(0x1e0fffff); // Block 240 compact target
+        assert_eq!(adjustment, adjustment_bits);
+    }
+
+    #[test]
+    fn compact_target_from_upwards_difficulty_adjustment_using_headers() {
+        use crate::{block::Version, TxMerkleNode};
+        use hashes::Hash;
+        let params = Params::new(Network::Dogecoin);
+        let starting_bits = CompactTarget::from_consensus(0x1e0fffff); // Block 479 compact target
+        // Block 239, the only information used is `time`
+        let epoch_start = Header {
+            version: Version::ONE,
+            prev_blockhash: BlockHash::all_zeros(),
+            merkle_root: TxMerkleNode::all_zeros(),
+            time: 1386475638,
+            bits: starting_bits,
+            nonce: 0
+        };
+        // Block 479, the only information used are `bits` and `time`
+        let current = Header {
+            version: Version::ONE,
+            prev_blockhash: BlockHash::all_zeros(),
+            merkle_root: TxMerkleNode::all_zeros(),
+            time: 1386475840,
+            bits: starting_bits,
+            nonce: 0
+        };
+        let adjustment = CompactTarget::from_header_difficulty_adjustment_dogecoin(epoch_start, current, params);
+        let adjustment_bits = CompactTarget::from_consensus(0x1e00ffff); // Block 480 compact target
+        assert_eq!(adjustment, adjustment_bits);
+    }
+
+    #[test]
+    fn compact_target_from_maximum_upward_difficulty_adjustment() {
+        let params = Params::new(Network::Dogecoin);
+        let starting_bits = CompactTarget::from_consensus(21403001); // Arbitrary difficulty
+        let timespan = (0.06 * params.bitcoin_params.pow_target_timespan as f64) as u64; // > 16x Faster than expected
+        let got = CompactTarget::from_next_work_required_dogecoin(starting_bits, timespan, params);
+        let want = Target::from_compact(starting_bits)
+            .min_transition_threshold_dogecoin(5000)
+            .to_compact_lossy();
+        assert_eq!(got, want);
+    }
+
+    #[test]
+    fn compact_target_from_minimum_downward_difficulty_adjustment() {
+        let params = Params::new(Network::Dogecoin);
+        let starting_bits = CompactTarget::from_consensus(21403001); // Arbitrary difficulty
+        let timespan =  5 * params.bitcoin_params.pow_target_timespan; // > 4x Slower than expected
+        let got = CompactTarget::from_next_work_required_dogecoin(starting_bits, timespan, &params);
+        let want = Target::from_compact(starting_bits)
+            .max_transition_threshold(params)
+            .to_compact_lossy();
+        assert_eq!(got, want);
+    }
+
+    #[test]
+    fn compact_target_from_adjustment_is_max_target() {
+        let params = Params::new(Network::Dogecoin);
+        let starting_bits = CompactTarget::from_consensus(0x1e0fffff); // Block 240 compact target (max target)
+        let timespan =  5 * params.bitcoin_params.pow_target_timespan; // > 4x Slower than expected
+        let got = CompactTarget::from_next_work_required(starting_bits, timespan, &params);
+        let want = params.bitcoin_params.max_attainable_target.to_compact_lossy();
+        assert_eq!(got, want);
+    }
+
+    #[test]
+    fn roundtrip_compact_target() {
+        let consensus = 0x1e0f_ffff;
+        let compact = CompactTarget::from_consensus(consensus);
+        let t = Target::from_compact(CompactTarget::from_consensus(consensus));
+        assert_eq!(t, Target::from(compact)); // From/Into sanity check.
+
+        let back = t.to_compact_lossy();
+        assert_eq!(back, compact); // From/Into sanity check.
+
+        assert_eq!(back.to_consensus(), consensus);
     }
 }
