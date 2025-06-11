@@ -283,8 +283,8 @@ mod tests {
     
     #[test]
     fn max_target_from_compact() {
-        // The highest possible target in Dogecoin is defined as 0x1e0ffff0
-        let bits = 0x1e0ffff0_u32;
+        // The highest possible target in Dogecoin is defined as 0x1e0fffff
+        let bits = 0x1e0fffff_u32;
         let want = Target::MAX_ATTAINABLE_MAINNET_DOGE;
         let got = Target::from_compact(CompactTarget::from_consensus(bits));
         assert_eq!(got, want)
