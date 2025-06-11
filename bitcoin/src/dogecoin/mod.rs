@@ -5,8 +5,13 @@
 //! This module provides support for de/serialization, parsing and execution on data structures and
 //! network messages related to Dogecoin.
 
+pub mod constants;
+pub mod params;
+
 use crate::block::{Header, TxMerkleNode};
 use crate::consensus::{encode, Decodable, Encodable};
+use crate::params::Params as BitcoinParams;
+use crate::dogecoin::params::Params;
 use crate::internal_macros::impl_consensus_encoding;
 use crate::io::{Read, Write};
 use crate::prelude::*;
@@ -113,6 +118,38 @@ impl Encodable for Block {
         }
         len += self.txdata.consensus_encode(w)?;
         Ok(len)
+    }
+}
+
+/// The cryptocurrency network to act on.
+#[derive(Copy, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(crate = "actual_serde"))]
+#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
+#[non_exhaustive]
+pub enum Network {
+    /// Mainnet Dogecoin.
+    Dogecoin,
+    /// Dogecoin's testnet network.
+    Testnet,
+    /// Dogecoin's regtest network.
+    Regtest,
+}
+
+impl Network {
+    /// Returns the associated network parameters.
+    pub const fn params(self) -> &'static Params {
+        match self {
+            Network::Dogecoin => &Params::DOGECOIN,
+            Network::Testnet => &Params::TESTNET,
+            Network::Regtest => &Params::REGTEST,
+        }
+    }
+}
+
+impl AsRef<BitcoinParams> for Network {
+    fn as_ref(&self) -> &BitcoinParams {
+        &Self::params(*self).bitcoin_params
     }
 }
 
@@ -236,5 +273,14 @@ mod tests {
             assert_eq!(header.block_hash_with_scrypt().to_string(), test.output_str);
             assert_eq!(serialize(&header.block_hash_with_scrypt()), test.output);
         }
+    }
+    
+    #[test]
+    fn max_target_from_compact() {
+        // The highest possible target in Dogecoin is defined as 0x1e0fffff
+        let bits = 0x1e0fffff_u32;
+        let want = Target::MAX_ATTAINABLE_MAINNET_DOGE;
+        let got = Target::from_compact(CompactTarget::from_consensus(bits));
+        assert_eq!(got, want)
     }
 }
