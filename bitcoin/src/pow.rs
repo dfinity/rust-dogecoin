@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: CC0-1.0
+// SPDX-License-Identifier: CC0-1.0 OR Apache-2.0
 
 //! Proof-of-work related integer types.
 //!
@@ -165,6 +165,22 @@ impl Target {
     // Taken from Bitcoin Core but had lossy conversion to/from compact form.
     // https://github.com/bitcoin/bitcoin/blob/8105bce5b384c72cf08b25b7c5343622754e7337/src/kernel/chainparams.cpp#L348
     pub const MAX_ATTAINABLE_SIGNET: Self = Target(U256(0x0377_ae00 << 80, 0));
+
+    /// The maximum **attainable** target value on Dogecoin mainnet.
+    ///
+    /// Not all target values are attainable because consensus code uses the compact format to
+    /// represent targets (see [`CompactTarget`]).
+    pub const MAX_ATTAINABLE_MAINNET_DOGE: Self = Target(U256(0xFFFF_F000u128 << (204 - 128), 0));
+
+    /// The proof of work limit on Dogecoin testnet.
+    // Taken from Dogecoin Core but had lossy conversion to/from compact form.
+    // https://github.com/dogecoin/dogecoin/blob/d7cc7f8bbb5f790942d0ed0617f62447e7675233/src/chainparams.cpp#L248
+    pub const MAX_ATTAINABLE_TESTNET_DOGE: Self = Target(U256(0xFFFF_F000u128 << (204 - 128), 0));
+
+    /// The proof of work limit on Dogecoin regtest.
+    // Taken from Dogecoin Core but had lossy conversion to/from compact form.
+    // https://github.com/dogecoin/dogecoin/blob/d7cc7f8bbb5f790942d0ed0617f62447e7675233/src/chainparams.cpp#L392
+    pub const MAX_ATTAINABLE_REGTEST_DOGE: Self = Target(U256(0x7FFF_FF00u128 << 96, 0));
 
     /// Computes the [`Target`] value from a compact representation.
     ///
