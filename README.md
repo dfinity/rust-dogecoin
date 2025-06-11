@@ -216,5 +216,8 @@ Release notes are done per crate, see:
 
 ## Licensing
 
-The code in this project is licensed under the [Creative Commons CC0 1.0 Universal license](LICENSE).
+This project is a fork of [rust-bitcoin](https://github.com/rust-bitcoin/rust-bitcoin/tree/master), originally licensed under CC0 v1.0 Universal.
+
+This fork is licensed under the Apache License, Version 2.0, except where otherwise noted.
+
 We use the [SPDX license list](https://spdx.org/licenses/) and [SPDX IDs](https://spdx.dev/ids/).
