@@ -14,8 +14,10 @@ use crate::params::Params as BitcoinParams;
 use crate::dogecoin::params::Params;
 use crate::internal_macros::impl_consensus_encoding;
 use crate::io::{Read, Write};
+use crate::p2p::Magic;
 use crate::prelude::*;
 use crate::{io, BlockHash, Transaction};
+use core::fmt;
 
 /// AuxPow version bit, see <https://github.com/dogecoin/dogecoin/blob/d7cc7f8bbb5f790942d0ed0617f62447e7675233/src/primitives/pureheader.h#L23>
 pub const VERSION_AUXPOW: i32 = 1 << 8;
@@ -89,6 +91,23 @@ impl Block {
 
     /// Returns the block hash using the scrypt hash function.
     pub fn block_hash_with_scrypt(&self) -> BlockHash { self.header.block_hash_with_scrypt() }
+
+    /// Checks if merkle root of header matches merkle root of the transaction list.
+    pub fn check_merkle_root(&self) -> bool {
+        match self.compute_merkle_root() {
+            Some(merkle_root) => self.header.merkle_root == merkle_root,
+            None => false,
+        }
+    }
+
+    /// Compute merkle root of the transaction list in this block.
+    pub fn compute_merkle_root(&self) -> Option<TxMerkleNode> {
+        let hashes = self
+            .txdata
+            .iter()
+            .map(|obj| obj.compute_txid().to_raw_hash());
+        crate::merkle_tree::calculate_root(hashes).map(|h| h.into())
+    }
 }
 
 impl Decodable for Block {
@@ -145,11 +164,49 @@ impl Network {
             Network::Regtest => &Params::REGTEST,
         }
     }
+
+    /// Return the magic bytes for the given network.
+    pub fn magic(self) -> Magic {
+        match self {
+            Network::Dogecoin => Magic::from_bytes([0xC0, 0xC0, 0xC0, 0xC0]),
+            Network::Testnet => Magic::from_bytes([0xFC, 0xC1, 0xB7, 0xDC]),
+            Network::Regtest => Magic::from_bytes([0xFA, 0xBF, 0xB5, 0xDA]),
+        }
+    }
 }
 
 impl AsRef<BitcoinParams> for Network {
     fn as_ref(&self) -> &BitcoinParams {
         &Self::params(*self).bitcoin_params
+    }
+}
+
+impl AsRef<Params> for Network {
+    fn as_ref(&self) -> &Params {
+        self.params()
+    }
+}
+
+impl fmt::Display for Network {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Network::Dogecoin => write!(f, "dogecoin"),
+            Network::Testnet => write!(f, "testnet"),
+            Network::Regtest => write!(f, "regtest"),
+        }
+    }
+}
+
+impl core::str::FromStr for Network {
+    type Err = crate::network::ParseNetworkError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "dogecoin" => Ok(Network::Dogecoin),
+            "testnet" => Ok(Network::Testnet),
+            "regtest" => Ok(Network::Regtest),
+            _ => Err(crate::network::ParseNetworkError(s.to_owned())),
+        }
     }
 }
 

@@ -256,7 +256,7 @@ pub mod as_core_arg {
 /// An error in parsing network string.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
-pub struct ParseNetworkError(String);
+pub struct ParseNetworkError(pub(crate) String);
 
 impl fmt::Display for ParseNetworkError {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
