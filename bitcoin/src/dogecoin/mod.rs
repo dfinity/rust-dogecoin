@@ -153,12 +153,6 @@ impl AsRef<BitcoinParams> for Network {
     }
 }
 
-impl AsRef<Params> for Network {
-    fn as_ref(&self) -> &Params {
-        &Self::params(*self)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use hex::test_hex_unwrap as hex;

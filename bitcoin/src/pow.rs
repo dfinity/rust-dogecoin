@@ -170,12 +170,12 @@ impl Target {
     ///
     /// Not all target values are attainable because consensus code uses the compact format to
     /// represent targets (see [`CompactTarget`]).
-    pub const MAX_ATTAINABLE_MAINNET_DOGE: Self = Target(U256(0xFFFF_Fu128 << (216 - 128), 0));
+    pub const MAX_ATTAINABLE_MAINNET_DOGE: Self = Target(U256(0xFFFF_F000u128 << (204 - 128), 0));
 
     /// The proof of work limit on Dogecoin testnet.
     // Taken from Dogecoin Core but had lossy conversion to/from compact form.
     // https://github.com/dogecoin/dogecoin/blob/d7cc7f8bbb5f790942d0ed0617f62447e7675233/src/chainparams.cpp#L248
-    pub const MAX_ATTAINABLE_TESTNET_DOGE: Self = Target(U256(0xFFFF_Fu128 << (216 - 128), 0));
+    pub const MAX_ATTAINABLE_TESTNET_DOGE: Self = Target(U256(0xFFFF_F000u128 << (204 - 128), 0));
 
     /// The proof of work limit on Dogecoin regtest.
     // Taken from Dogecoin Core but had lossy conversion to/from compact form.
