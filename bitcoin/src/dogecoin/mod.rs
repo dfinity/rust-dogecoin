@@ -13,11 +13,11 @@ pub use address::*;
 
 use crate::block::{Header, TxMerkleNode};
 use crate::consensus::{encode, Decodable, Encodable};
-use crate::params::Params as BitcoinParams;
 use crate::dogecoin::params::Params;
 use crate::internal_macros::impl_consensus_encoding;
 use crate::io::{Read, Write};
 use crate::p2p::Magic;
+use crate::params::Params as BitcoinParams;
 use crate::prelude::*;
 use crate::{io, BlockHash, Transaction};
 use core::fmt;
@@ -97,7 +97,9 @@ impl Block {
     }
 
     /// Returns the block hash using the scrypt hash function.
-    pub fn block_hash_with_scrypt(&self) -> BlockHash { self.header.block_hash_with_scrypt() }
+    pub fn block_hash_with_scrypt(&self) -> BlockHash {
+        self.header.block_hash_with_scrypt()
+    }
 
     /// Checks if merkle root of header matches merkle root of the transaction list.
     pub fn check_merkle_root(&self) -> bool {
@@ -109,10 +111,7 @@ impl Block {
 
     /// Compute merkle root of the transaction list in this block.
     pub fn compute_merkle_root(&self) -> Option<TxMerkleNode> {
-        let hashes = self
-            .txdata
-            .iter()
-            .map(|obj| obj.compute_txid().to_raw_hash());
+        let hashes = self.txdata.iter().map(|obj| obj.compute_txid().to_raw_hash());
         crate::merkle_tree::calculate_root(hashes).map(|h| h.into())
     }
 }
