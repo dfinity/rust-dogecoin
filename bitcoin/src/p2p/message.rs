@@ -145,9 +145,7 @@ impl fmt::Display for CommandStringError {
 
 #[cfg(feature = "std")]
 impl std::error::Error for CommandStringError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        None
-    }
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> { None }
 }
 
 /// A Network message
