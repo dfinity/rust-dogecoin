@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 //! Error code for the address module.
 
 use core::fmt;
@@ -18,7 +20,7 @@ pub use crate::address::error::{
 pub enum ParseError {
     /// Base58 error.
     Base58(base58::Error),
-    /// Tried to parse an unknown HRP.
+    /// Legacy address is too long.
     LegacyAddressTooLong(LegacyAddressTooLongError),
     /// Invalid base58 payload data length for legacy address.
     InvalidBase58PayloadLength(InvalidBase58PayloadLengthError),

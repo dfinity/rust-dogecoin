@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: CC0-1.0
+// SPDX-License-Identifier: Apache-2.0
 
 //! Dogecoin addresses.
 //!
@@ -32,12 +32,12 @@ use core::fmt;
 use core::marker::PhantomData;
 use core::str::FromStr;
 
-use hashes::{sha256, Hash, HashEngine};
+use hashes::Hash;
 use secp256k1::XOnlyPublicKey;
 
 use crate::blockdata::constants::MAX_SCRIPT_ELEMENT_SIZE;
 use crate::blockdata::script::{self, Script, ScriptBuf, ScriptHash};
-use crate::crypto::key::{CompressedPublicKey, PubkeyHash, PublicKey};
+use crate::crypto::key::{PubkeyHash, PublicKey};
 use crate::dogecoin::constants::{
     PUBKEY_ADDRESS_PREFIX_MAINNET, PUBKEY_ADDRESS_PREFIX_REGTEST, PUBKEY_ADDRESS_PREFIX_TESTNET,
     SCRIPT_ADDRESS_PREFIX_MAINNET, SCRIPT_ADDRESS_PREFIX_REGTEST, SCRIPT_ADDRESS_PREFIX_TESTNET,
@@ -114,7 +114,7 @@ pub enum AddressData {
     },
 }
 
-/// A Dogecion address.
+/// A Dogecoin address.
 ///
 /// ### Parsing addresses
 ///
@@ -179,7 +179,7 @@ pub enum AddressData {
 ///
 /// ```
 /// # use std::str::FromStr;
-/// # use bitcoin::address::{Address, NetworkUnchecked};
+/// # use bitcoin::dogecoin::address::{Address, NetworkUnchecked};
 /// let address: Address<NetworkUnchecked> = Address::from_str("n48pquU8ieq7gidgJJ4vWD2jbsErmZvrwe")
 ///                .unwrap();
 /// assert_eq!(format!("{:?}", address), "Address<NetworkUnchecked>(n48pquU8ieq7gidgJJ4vWD2jbsErmZvrwe)");
@@ -187,7 +187,7 @@ pub enum AddressData {
 ///
 /// ```
 /// # use std::str::FromStr;
-/// # use bitcoin::address::{Address, NetworkChecked};
+/// # use bitcoin::dogecoin::address::{Address, NetworkChecked};
 /// let address: Address<NetworkChecked> = Address::from_str("n48pquU8ieq7gidgJJ4vWD2jbsErmZvrwe")
 ///                .unwrap().assume_checked();
 /// assert_eq!(format!("{:?}", address), "n48pquU8ieq7gidgJJ4vWD2jbsErmZvrwe");
@@ -271,24 +271,6 @@ impl Address {
         Self(AddressInner::P2sh { hash, network: network.into() }, PhantomData)
     }
 
-    /// Creates a pay to script address that embeds a witness pay to public key.
-    ///
-    /// This is a segwit address type that looks familiar (as p2sh) to legacy clients.
-    pub fn p2shwpkh(pk: &CompressedPublicKey, network: impl Into<Network>) -> Address {
-        let builder = script::Builder::new().push_int(0).push_slice(pk.wpubkey_hash());
-        let script_hash = builder.as_script().script_hash();
-        Address::p2sh_from_hash(script_hash, network)
-    }
-
-    /// Creates a pay to script address that embeds a witness pay to script hash address.
-    ///
-    /// This is a segwit address type that looks familiar (as p2sh) to legacy clients.
-    pub fn p2shwsh(script: &Script, network: impl Into<Network>) -> Address {
-        let builder = script::Builder::new().push_int(0).push_slice(script.wscript_hash());
-        let script_hash = builder.as_script().script_hash();
-        Address::p2sh_from_hash(script_hash, network)
-    }
-
     /// Gets the address type of the address.
     ///
     /// # Returns
@@ -332,23 +314,6 @@ impl Address {
         }
     }
 
-    /// Checks whether or not the address is following Dogecoin standardness rules when
-    /// *spending* from this address. *NOT* to be called by senders.
-    ///
-    /// <details>
-    /// <summary>Spending Standardness</summary>
-    ///
-    /// For forward compatibility, the senders must send to any [`Address`]. Receivers
-    /// can use this method to check whether or not they can spend from this address.
-    ///
-    /// SegWit addresses with unassigned witness versions or non-standard program sizes are
-    /// considered non-standard.
-    /// </details>
-    ///
-    pub fn is_spend_standard(&self) -> bool {
-        self.address_type().is_some()
-    }
-
     /// Constructs an [`Address`] from an output script (`scriptPubkey`).
     pub fn from_script(
         script: &Script,
@@ -387,17 +352,7 @@ impl Address {
         let payload = self.payload_as_bytes();
         let xonly_pubkey = XOnlyPublicKey::from(pubkey.inner);
 
-        (*pubkey_hash.as_byte_array() == *payload)
-            || (xonly_pubkey.serialize() == *payload)
-            || (*segwit_redeem_hash(&pubkey_hash).as_byte_array() == *payload)
-    }
-
-    /// Returns true if the supplied xonly public key can be used to derive the address.
-    ///
-    /// This will only work for Taproot addresses. The Public Key is
-    /// assumed to have already been tweaked.
-    pub fn is_related_to_xonly_pubkey(&self, xonly_pubkey: &XOnlyPublicKey) -> bool {
-        xonly_pubkey.serialize() == *self.payload_as_bytes()
+        (*pubkey_hash.as_byte_array() == *payload) || (xonly_pubkey.serialize() == *payload)
     }
 
     /// Returns true if the address creates a particular script
@@ -422,7 +377,6 @@ impl Address {
     ///
     /// - For p2sh, the payload is the script hash.
     /// - For p2pkh, the payload is the pubkey hash.
-    /// - For segwit addresses, the payload is the witness program.
     fn payload_as_bytes(&self) -> &[u8] {
         use AddressInner::*;
         match self.0 {
@@ -616,14 +570,6 @@ impl FromStr for Address<NetworkUnchecked> {
     }
 }
 
-/// Convert a byte array of a pubkey hash into a segwit redeem hash
-fn segwit_redeem_hash(pubkey_hash: &PubkeyHash) -> crate::hashes::hash160::Hash {
-    let mut sha_engine = sha256::Hash::engine();
-    sha_engine.input(&[0, 20]);
-    sha_engine.input(pubkey_hash.as_ref());
-    crate::hashes::hash160::Hash::from_engine(sha_engine)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -656,7 +602,7 @@ mod tests {
     #[test]
     fn test_p2pkh_address_58() {
         let hash = "162c5ea71c0b23f5b9022ef047c4a86470a5b070".parse::<PubkeyHash>().unwrap();
-        let addr = Address::p2pkh(hash, Network::Dogecoin);
+        let addr = Address::p2pkh(hash, Dogecoin);
 
         assert_eq!(
             addr.script_pubkey(),
@@ -670,13 +616,13 @@ mod tests {
     #[test]
     fn test_p2pkh_from_key() {
         let key = "048d5141948c1702e8c95f438815794b87f706a8d4cd2bffad1dc1570971032c9b6042a0431ded2478b5c9cf2d81c124a5e57347a3c63ef0e7716cf54d613ba183".parse::<PublicKey>().unwrap();
-        let addr = Address::p2pkh(key, Network::Dogecoin);
+        let addr = Address::p2pkh(key, Dogecoin);
         assert_eq!(&addr.to_string(), "DUSamFaUtRQ78DVidoeY3J8keYkQXdinrt");
 
         let key = "03df154ebfcf29d29cc10d5c2565018bce2d9edbab267c31d2caf44a63056cf99f"
             .parse::<PublicKey>()
             .unwrap();
-        let addr = Address::p2pkh(key, Network::Testnet);
+        let addr = Address::p2pkh(key, Testnet);
         assert_eq!(&addr.to_string(), "neRuCZsfnZaJN8FmxxVZDSZbcGATnzGByf");
         assert_eq!(addr.address_type(), Some(AddressType::P2pkh));
         roundtrips(&addr, Testnet);
@@ -685,7 +631,7 @@ mod tests {
     #[test]
     fn test_p2sh_address_58() {
         let hash = "162c5ea71c0b23f5b9022ef047c4a86470a5b070".parse::<ScriptHash>().unwrap();
-        let addr = Address::p2sh_from_hash(hash, Network::Dogecoin);
+        let addr = Address::p2sh_from_hash(hash, Dogecoin);
 
         assert_eq!(
             addr.script_pubkey(),
@@ -699,7 +645,7 @@ mod tests {
     #[test]
     fn test_p2sh_parse() {
         let script = ScriptBuf::from_hex("552103a765fc35b3f210b95223846b36ef62a4e53e34e2925270c2c7906b92c9f718eb2103c327511374246759ec8d0b89fa6c6b23b33e11f92c5bc155409d86de0c79180121038cae7406af1f12f4786d820a1466eec7bc5785a1b5e4a387eca6d797753ef6db2103252bfb9dcaab0cd00353f2ac328954d791270203d66c2be8b430f115f451b8a12103e79412d42372c55dd336f2eb6eb639ef9d74a22041ba79382c74da2338fe58ad21035049459a4ebc00e876a9eef02e72a3e70202d3d1f591fc0dd542f93f642021f82102016f682920d9723c61b27f562eb530c926c00106004798b6471e8c52c60ee02057ae").unwrap();
-        let addr = Address::p2sh(&script, Network::Testnet).unwrap();
+        let addr = Address::p2sh(&script, Testnet).unwrap();
         assert_eq!(&addr.to_string(), "2N3zXjbwdTcPsJiy8sUK9FhWJhqQCxA8Jjr");
         assert_eq!(addr.address_type(), Some(AddressType::P2sh));
         roundtrips(&addr, Testnet);
@@ -708,7 +654,7 @@ mod tests {
     #[test]
     fn test_p2sh_parse_for_large_script() {
         let script = ScriptBuf::from_hex("552103a765fc35b3f210b95223846b36ef62a4e53e34e2925270c2c7906b92c9f718eb2103c327511374246759ec8d0b89fa6c6b23b33e11f92c5bc155409d86de0c79180121038cae7406af1f12f4786d820a1466eec7bc5785a1b5e4a387eca6d797753ef6db2103252bfb9dcaab0cd00353f2ac328954d791270203d66c2be8b430f115f451b8a12103e79412d42372c55dd336f2eb6eb639ef9d74a22041ba79382c74da2338fe58ad21035049459a4ebc00e876a9eef02e72a3e70202d3d1f591fc0dd542f93f642021f82102016f682920d9723c61b27f562eb530c926c00106004798b6471e8c52c60ee02057ae12123122313123123ac1231231231231313123131231231231313212313213123123552103a765fc35b3f210b95223846b36ef62a4e53e34e2925270c2c7906b92c9f718eb2103c327511374246759ec8d0b89fa6c6b23b33e11f92c5bc155409d86de0c79180121038cae7406af1f12f4786d820a1466eec7bc5785a1b5e4a387eca6d797753ef6db2103252bfb9dcaab0cd00353f2ac328954d791270203d66c2be8b430f115f451b8a12103e79412d42372c55dd336f2eb6eb639ef9d74a22041ba79382c74da2338fe58ad21035049459a4ebc00e876a9eef02e72a3e70202d3d1f591fc0dd542f93f642021f82102016f682920d9723c61b27f562eb530c926c00106004798b6471e8c52c60ee02057ae12123122313123123ac1231231231231313123131231231231313212313213123123552103a765fc35b3f210b95223846b36ef62a4e53e34e2925270c2c7906b92c9f718eb2103c327511374246759ec8d0b89fa6c6b23b33e11f92c5bc155409d86de0c79180121038cae7406af1f12f4786d820a1466eec7bc5785a1b5e4a387eca6d797753ef6db2103252bfb9dcaab0cd00353f2ac328954d791270203d66c2be8b430f115f451b8a12103e79412d42372c55dd336f2eb6eb639ef9d74a22041ba79382c74da2338fe58ad21035049459a4ebc00e876a9eef02e72a3e70202d3d1f591fc0dd542f93f642021f82102016f682920d9723c61b27f562eb530c926c00106004798b6471e8c52c60ee02057ae12123122313123123ac1231231231231313123131231231231313212313213123123").unwrap();
-        assert_eq!(Address::p2sh(&script, Network::Testnet), Err(P2shError::ExcessiveScriptSize));
+        assert_eq!(Address::p2sh(&script, Testnet), Err(P2shError::ExcessiveScriptSize));
     }
 
     #[test]
@@ -742,10 +688,8 @@ mod tests {
             ("A1yb6viUzAcUWftRHT6GpnCwvhXHg4CV1x", Some(AddressType::P2sh)),
         ];
         for (address, expected_type) in &addresses {
-            let addr = Address::from_str(address)
-                .unwrap()
-                .require_network(Network::Dogecoin)
-                .expect("mainnet");
+            let addr =
+                Address::from_str(address).unwrap().require_network(Dogecoin).expect("mainnet");
             assert_eq!(&addr.address_type(), expected_type);
         }
     }
@@ -789,7 +733,7 @@ mod tests {
         let address_string = "neRuCZsfnZaJN8FmxxVZDSZbcGATnzGByf";
         let address = Address::from_str(address_string)
             .expect("address")
-            .require_network(Network::Testnet)
+            .require_network(Testnet)
             .expect("testnet");
 
         let pubkey_string = "03df154ebfcf29d29cc10d5c2565018bce2d9edbab267c31d2caf44a63056cf99f";
@@ -810,7 +754,7 @@ mod tests {
         let address_string = "DUSamFaUtRQ78DVidoeY3J8keYkQXdinrt";
         let address = Address::from_str(address_string)
             .expect("address")
-            .require_network(Network::Dogecoin)
+            .require_network(Dogecoin)
             .expect("mainnet");
 
         let pubkey_string = "048d5141948c1702e8c95f438815794b87f706a8d4cd2bffad1dc1570971032c9b6042a0431ded2478b5c9cf2d81c124a5e57347a3c63ef0e7716cf54d613ba183";
