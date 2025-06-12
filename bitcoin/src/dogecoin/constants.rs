@@ -149,7 +149,7 @@ mod test {
     #[test]
     fn genesis_full_block() {
         let gen = genesis_block(&Params::DOGECOIN);
-
+        assert!(gen.check_merkle_root());
         assert_eq!(gen.header.version, block::Version::ONE);
         assert_eq!(gen.header.prev_blockhash, Hash::all_zeros());
         assert_eq!(
@@ -169,6 +169,7 @@ mod test {
     #[test]
     fn testnet_genesis_full_block() {
         let gen = genesis_block(&Params::TESTNET);
+        assert!(gen.check_merkle_root());
         assert_eq!(gen.header.version, block::Version::ONE);
         assert_eq!(gen.header.prev_blockhash, Hash::all_zeros());
         assert_eq!(
@@ -187,6 +188,7 @@ mod test {
     #[test]
     fn regtest_genesis_full_block() {
         let gen = genesis_block(&Params::REGTEST);
+        assert!(gen.check_merkle_root());
         assert_eq!(gen.header.version, block::Version::ONE);
         assert_eq!(gen.header.prev_blockhash, Hash::all_zeros());
         assert_eq!(
