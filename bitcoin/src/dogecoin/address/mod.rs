@@ -559,6 +559,10 @@ impl FromStr for Address<NetworkUnchecked> {
                 let hash = ScriptHash::from_byte_array(data);
                 AddressInner::P2sh { hash, network: Network::Dogecoin }
             }
+            // Because SCRIPT_ADDRESS_PREFIX_TESTNET and SCRIPT_ADDRESS_PREFIX_REGTTEST are
+            // the same, we do not differentiate between Testnet and Regtest only when it is P2sh.
+            // This is handled in function is_valid_for_network (its docstring has more
+            // explanation).
             SCRIPT_ADDRESS_PREFIX_TESTNET => {
                 let hash = ScriptHash::from_byte_array(data);
                 AddressInner::P2sh { hash, network: Network::Testnet }
