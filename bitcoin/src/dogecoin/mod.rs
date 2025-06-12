@@ -161,7 +161,6 @@ mod tests {
     use crate::block::{ValidationError, Version};
     use crate::consensus::encode::{deserialize, serialize};
     use crate::{CompactTarget, Target, Work};
-    use crate::params::{Params as BitcoinParams};
     use crate::{Network as BitcoinNetwork};
 
 
