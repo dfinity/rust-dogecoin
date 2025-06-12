@@ -195,9 +195,9 @@ mod tests {
             real_decode.header.validate_pow_with_scrypt(real_decode.header.target()).unwrap(),
             real_decode.block_hash_with_scrypt()
         );
-        // Bitcoin parameters are used because Dogecoin's difficulty calculation is the same as Bitcoin,
-        // which depends on Bitcoin's `max_attainable_target` value
-        assert_eq!(real_decode.header.difficulty(&BitcoinParams::new(BitcoinNetwork::Bitcoin)), 455);
+        // Bitcoin network is used because Dogecoin's difficulty calculation is based on Bitcoin's,
+        // which uses Bitcoin's `max_attainable_target` value
+        assert_eq!(real_decode.header.difficulty(BitcoinNetwork::Bitcoin), 455);
         assert_eq!(real_decode.header.difficulty_float(), 455.52430084170516);
 
         assert_eq!(serialize(&real_decode), some_block);
