@@ -5,16 +5,19 @@
 //! This module provides support for de/serialization, parsing and execution on data structures and
 //! network messages related to Dogecoin.
 
+pub mod address;
 pub mod constants;
 pub mod params;
 
+pub use address::*;
+
 use crate::block::{Header, TxMerkleNode};
 use crate::consensus::{encode, Decodable, Encodable};
-use crate::params::Params as BitcoinParams;
 use crate::dogecoin::params::Params;
 use crate::internal_macros::impl_consensus_encoding;
 use crate::io::{Read, Write};
 use crate::p2p::Magic;
+use crate::params::Params as BitcoinParams;
 use crate::prelude::*;
 use crate::{io, BlockHash, Transaction};
 use core::fmt;
