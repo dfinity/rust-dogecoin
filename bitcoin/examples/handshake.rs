@@ -9,6 +9,9 @@ use bitcoin::consensus::{encode, Decodable};
 use bitcoin::p2p::{self, address, message, message_network};
 use bitcoin::secp256k1::rand::Rng;
 
+type NetworkMessage = message::NetworkMessage<bitcoin::Block>;
+type RawNetworkMessage = message::RawNetworkMessage<bitcoin::Block>;
+
 fn main() {
     // This example establishes a connection to a Bitcoin node, sends the initial
     // "version" message, waits for the reply, and finally closes the connection.
@@ -28,7 +31,7 @@ fn main() {
     let version_message = build_version_message(address);
 
     let first_message =
-        message::RawNetworkMessage::new(bitcoin::Network::Bitcoin.magic(), version_message);
+        RawNetworkMessage::new(bitcoin::Network::Bitcoin.magic(), version_message);
 
     if let Ok(mut stream) = TcpStream::connect(address) {
         // Send the message
@@ -40,20 +43,20 @@ fn main() {
         let mut stream_reader = BufReader::new(read_stream);
         loop {
             // Loop an retrieve new messages
-            let reply = message::RawNetworkMessage::consensus_decode(&mut stream_reader).unwrap();
+            let reply = RawNetworkMessage::consensus_decode(&mut stream_reader).unwrap();
             match reply.payload() {
-                message::NetworkMessage::Version(_) => {
+                NetworkMessage::Version(_) => {
                     println!("Received version message: {:?}", reply.payload());
 
-                    let second_message = message::RawNetworkMessage::new(
+                    let second_message = RawNetworkMessage::new(
                         bitcoin::Network::Bitcoin.magic(),
-                        message::NetworkMessage::Verack,
+                        NetworkMessage::Verack,
                     );
 
                     let _ = stream.write_all(encode::serialize(&second_message).as_slice());
                     println!("Sent verack message");
                 }
-                message::NetworkMessage::Verack => {
+                NetworkMessage::Verack => {
                     println!("Received verack message: {:?}", reply.payload());
                     break;
                 }
@@ -69,7 +72,7 @@ fn main() {
     }
 }
 
-fn build_version_message(address: SocketAddr) -> message::NetworkMessage {
+fn build_version_message(address: SocketAddr) -> NetworkMessage {
     // Building version message, see https://en.bitcoin.it/wiki/Protocol_documentation#version
     let my_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0);
 
@@ -95,7 +98,7 @@ fn build_version_message(address: SocketAddr) -> message::NetworkMessage {
     let start_height: i32 = 0;
 
     // Construct the message
-    message::NetworkMessage::Version(message_network::VersionMessage::new(
+    NetworkMessage::Version(message_network::VersionMessage::new(
         services,
         timestamp as i64,
         addr_recv,
