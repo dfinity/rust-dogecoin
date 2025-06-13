@@ -150,9 +150,9 @@ impl std::error::Error for CommandStringError {
 
 /// A Network message
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct RawNetworkMessage {
+pub struct RawNetworkMessage<Block> {
     magic: Magic,
-    payload: NetworkMessage,
+    payload: NetworkMessage<Block>,
     payload_len: u32,
     checksum: [u8; 4],
 }
@@ -160,7 +160,7 @@ pub struct RawNetworkMessage {
 /// A Network message payload. Proper documentation is available on at
 /// [Bitcoin Wiki: Protocol Specification](https://en.bitcoin.it/wiki/Protocol_specification)
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub enum NetworkMessage {
+pub enum NetworkMessage<Block> {
     /// `version`
     Version(message_network::VersionMessage),
     /// `verack`
@@ -182,7 +182,7 @@ pub enum NetworkMessage {
     /// tx
     Tx(transaction::Transaction),
     /// `block`
-    Block(block::Block),
+    Block(Block),
     /// `headers`
     Headers(Vec<block::Header>),
     /// `sendheaders`
@@ -243,7 +243,7 @@ pub enum NetworkMessage {
     },
 }
 
-impl NetworkMessage {
+impl<Block> NetworkMessage<Block> {
     /// Return the message command as a static string reference.
     ///
     /// This returns `"unknown"` for [NetworkMessage::Unknown],
@@ -300,9 +300,9 @@ impl NetworkMessage {
     }
 }
 
-impl RawNetworkMessage {
+impl<Block: Encodable> RawNetworkMessage<Block> {
     /// Creates a [RawNetworkMessage]
-    pub fn new(magic: Magic, payload: NetworkMessage) -> Self {
+    pub fn new(magic: Magic, payload: NetworkMessage<Block>) -> Self {
         let mut engine = sha256d::Hash::engine();
         let payload_len = payload.consensus_encode(&mut engine).expect("engine doesn't error");
         let payload_len = u32::try_from(payload_len).expect("network message use u32 as length");
@@ -312,12 +312,14 @@ impl RawNetworkMessage {
     }
 
     /// Consumes the [RawNetworkMessage] instance and returns the inner payload.
-    pub fn into_payload(self) -> NetworkMessage {
+    pub fn into_payload(self) -> NetworkMessage<Block> {
         self.payload
     }
 
     /// The actual message data
-    pub fn payload(&self) -> &NetworkMessage { &self.payload }
+    pub fn payload(&self) -> &NetworkMessage<Block> {
+        &self.payload
+    }
 
     /// Magic bytes to identify the network these messages are meant for
     pub fn magic(&self) -> &Magic { &self.magic }
@@ -348,7 +350,7 @@ impl<'a> Encodable for HeaderSerializationWrapper<'a> {
     }
 }
 
-impl Encodable for NetworkMessage {
+impl<Block: Encodable> Encodable for NetworkMessage<Block> {
     fn consensus_encode<W: Write + ?Sized>(&self, writer: &mut W) -> Result<usize, io::Error> {
         match self {
             NetworkMessage::Version(ref dat) => dat.consensus_encode(writer),
@@ -393,7 +395,7 @@ impl Encodable for NetworkMessage {
     }
 }
 
-impl Encodable for RawNetworkMessage {
+impl<Block: Encodable> Encodable for RawNetworkMessage<Block> {
     fn consensus_encode<W: Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
         let mut len = 0;
         len += self.magic.consensus_encode(w)?;
@@ -433,7 +435,7 @@ impl Decodable for HeaderDeserializationWrapper {
     }
 }
 
-impl Decodable for RawNetworkMessage {
+impl<Block: Decodable> Decodable for RawNetworkMessage<Block> {
     fn consensus_decode_from_finite_reader<R: Read + ?Sized>(
         r: &mut R,
     ) -> Result<Self, encode::Error> {
@@ -547,7 +549,7 @@ mod test {
     use hex::test_hex_unwrap as hex;
 
     use super::message_network::{Reject, RejectReason, VersionMessage};
-    use super::*;
+    use super::{block, AddrV2Message, Address, CommandString, Magic, MerkleBlock};
     use crate::bip152::BlockTransactionsRequest;
     use crate::blockdata::block::Block;
     use crate::blockdata::script::ScriptBuf;
@@ -562,7 +564,12 @@ mod test {
     };
     use crate::p2p::ServiceFlags;
 
-    fn hash(slice: [u8; 32]) -> Hash { Hash::from_slice(&slice).unwrap() }
+    type NetworkMessage = super::NetworkMessage<Block>;
+    type RawNetworkMessage = super::RawNetworkMessage<Block>;
+
+    fn hash(slice: [u8; 32]) -> Hash {
+        Hash::from_slice(&slice).unwrap()
+    }
 
     #[test]
     fn full_round_ser_der_raw_network_message_test() {

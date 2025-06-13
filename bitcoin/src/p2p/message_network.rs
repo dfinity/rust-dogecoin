@@ -73,6 +73,10 @@ impl VersionMessage {
             relay: false,
         }
     }
+    /// Set the version number.
+    pub fn with_version(self, version: u32) -> Self {
+        Self { version, ..self }
+    }
 }
 
 impl_consensus_encoding!(
