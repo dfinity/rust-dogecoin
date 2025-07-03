@@ -141,6 +141,9 @@ pub enum AddressData {
 /// let address: Address<NetworkUnchecked> = "DUSamFaUtRQ78DVidoeY3J8keYkQXdinrt".parse().unwrap();
 /// let address: Address<NetworkChecked> = address.require_network(Network::Dogecoin).unwrap();
 ///
+/// let address: Address<NetworkUnchecked> = "mhYCK8wSgwctbFnc3u9fCzzF8XgodR9KHX".parse().unwrap();
+/// let address: Address<NetworkChecked> = address.require_network(Network::Regtest).unwrap();
+///
 /// // variant 2
 /// let address: Address = Address::from_str("DUSamFaUtRQ78DVidoeY3J8keYkQXdinrt").unwrap()
 ///                .require_network(Network::Dogecoin).unwrap();

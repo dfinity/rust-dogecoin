@@ -1,6 +1,6 @@
 [package]
 name = "bitcoin"
-version = "0.32.5-doge.0"
+version = "0.32.99"
 license = "CC0-1.0"
 repository = "https://github.com/rust-dogecoin/rust-dogecoin/"
 description = "General purpose library for using and interoperating with Bitcoin and Dogecoin."
