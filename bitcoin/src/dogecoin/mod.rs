@@ -178,18 +178,6 @@ impl Network {
     }
 }
 
-impl AsRef<BitcoinParams> for Network {
-    fn as_ref(&self) -> &BitcoinParams {
-        &Self::params(*self).bitcoin_params
-    }
-}
-
-impl AsRef<Params> for Network {
-    fn as_ref(&self) -> &Params {
-        self.params()
-    }
-}
-
 impl fmt::Display for Network {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -425,7 +413,7 @@ mod tests {
         let params = Params::new(Network::Dogecoin);
         let heights = vec![5000, 10000, 15000];
         let starting_bits = CompactTarget::from_consensus(21403001); // Arbitrary difficulty
-        let timespan = (0.06 * params.bitcoin_params.pow_target_timespan as f64) as u64; // > 16x Faster than expected
+        let timespan = (0.06 * params.pow_target_timespan as f64) as u64; // > 16x Faster than expected
         for height in heights {
             let got = CompactTarget::from_next_work_required_dogecoin(starting_bits, timespan, &params, height);
             let want = Target::from_compact(starting_bits)
@@ -440,11 +428,11 @@ mod tests {
         let params = Params::new(Network::Dogecoin);
         let heights = vec![5000, 10000, 15000];
         let starting_bits = CompactTarget::from_consensus(21403001); // Arbitrary difficulty
-        let timespan =  5 * params.bitcoin_params.pow_target_timespan; // > 4x Slower than expected
+        let timespan =  5 * params.pow_target_timespan; // > 4x Slower than expected
         for height in heights {
             let got = CompactTarget::from_next_work_required_dogecoin(starting_bits, timespan, &params, height);
             let want = Target::from_compact(starting_bits)
-                .max_transition_threshold(&params)
+                .max_transition_threshold_dogecoin(&params)
                 .to_compact_lossy();
             assert_eq!(got, want);
         }
@@ -454,9 +442,9 @@ mod tests {
     fn compact_target_from_adjustment_is_max_target() {
         let params = Params::new(Network::Dogecoin);
         let starting_bits = CompactTarget::from_consensus(0x1e0fffff); // Block 240 compact target (max target)
-        let timespan =  5 * params.bitcoin_params.pow_target_timespan; // > 4x Slower than expected
-        let got = CompactTarget::from_next_work_required(starting_bits, timespan, &params);
-        let want = params.bitcoin_params.max_attainable_target.to_compact_lossy();
+        let timespan =  5 * params.pow_target_timespan; // > 4x Slower than expected
+        let got = CompactTarget::from_next_work_required_dogecoin(starting_bits, timespan, &params, 480);
+        let want = params.max_attainable_target.to_compact_lossy();
         assert_eq!(got, want);
     }
 

@@ -81,7 +81,7 @@ pub fn genesis_block(params: impl AsRef<Params>) -> Block {
     let hash: sha256d::Hash = txdata[0].compute_txid().into();
     let merkle_root: TxMerkleNode = hash.into();
 
-    match params.dogecoin_params.network {
+    match params.network {
         Network::Dogecoin => Block {
             header: block::Header {
                 version: block::Version::ONE,
