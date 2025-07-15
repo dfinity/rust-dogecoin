@@ -455,9 +455,10 @@ impl CompactTarget {
     /// ref: <https://github.com/dogecoin/dogecoin/blob/51cbc1fd5d0d045dda2ad84f53572bbf524c6a8e/src/dogecoin.cpp>
     ///
     /// Given the previous Target, represented as a [`CompactTarget`], the difficulty is adjusted
-    /// by taking the timespan between them, and multipling the current [`CompactTarget`] by a factor
+    /// by taking the timespan between them, and multiplying the current [`CompactTarget`] by a factor
     /// of the net timespan and expected timespan. The [`CompactTarget`] may not increase by more than
-    /// a factor of 4, adjust beyond the maximum threshold for the network, or decrease... TODO
+    /// a factor of 4, adjust beyond the maximum threshold for the network, or decrease by a factor
+    /// of 16, 8, or 4 depending on block height.
     ///
     /// # Returns
     ///
@@ -465,7 +466,8 @@ impl CompactTarget {
     pub fn from_next_work_required_dogecoin(
         last: CompactTarget,
         timespan: u64,
-        params: impl AsRef<Params>
+        params: impl AsRef<Params>,
+        height: u32
     ) -> CompactTarget {
         let params = params.as_ref();
         if params.no_pow_retargeting { 
@@ -473,8 +475,14 @@ impl CompactTarget {
         }
         // Comments relate to the `pow.cpp` file from Core.
         // ref: <https://github.com/dogecoin/dogecoin/blob/51cbc1fd5d0d045dda2ad84f53572bbf524c6a8e/src/dogecoin.cpp>
-        let min_timespan = params.pow_target_timespan >> 4; // Lines 64
-        let max_timespan = params.pow_target_timespan << 2; // Lines 65
+        let max_timespan = params.pow_target_timespan << 2;
+        let min_timespan = if height > 10000 { // Lines 57-66
+            params.pow_target_timespan >> 2
+        } else if height > 5000 {
+            params.pow_target_timespan >> 3
+        } else {
+            params.pow_target_timespan >> 4
+        };
         let actual_timespan = timespan.clamp(min_timespan, max_timespan); // Lines 69-72 nModulatedTimespan
         let prev_target: Target = last.into();
         let maximum_retarget = prev_target.max_transition_threshold(params); // bnPowLimit
@@ -544,10 +552,11 @@ impl CompactTarget {
         last_epoch_boundary: Header,
         current: Header,
         params: impl AsRef<Params>,
+        height: u32
     ) -> CompactTarget {
         let timespan = current.time - last_epoch_boundary.time;
         let bits = current.bits;
-        CompactTarget::from_next_work_required_dogecoin(bits, timespan.into(), params)
+        CompactTarget::from_next_work_required_dogecoin(bits, timespan.into(), params, height)
     }
 
     /// Creates a [`CompactTarget`] from a consensus encoded `u32`.
