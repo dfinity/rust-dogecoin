@@ -354,7 +354,7 @@ mod tests {
         let start_time: u64 = 1386325540; // Genesis block unix time
         let end_time: u64 = 1386475638; // Block 239 unix time
         let timespan = end_time - start_time; // Slower than expected (150,098 seconds diff)
-        let adjustment = CompactTarget::from_next_work_required_dogecoin(starting_bits, timespan, &params);
+        let adjustment = CompactTarget::from_next_work_required_dogecoin(starting_bits, timespan, &params, 240);
         let adjustment_bits = CompactTarget::from_consensus(0x1e0fffff); // Block 240 compact target
         assert_eq!(adjustment, adjustment_bits);
     }
@@ -366,7 +366,7 @@ mod tests {
         let start_time: u64 = 1386475638; // Block 239 unix time
         let end_time: u64 = 1386475840; // Block 479 unix time
         let timespan = end_time - start_time; // Faster than expected (202 seconds diff)
-        let adjustment = CompactTarget::from_next_work_required_dogecoin(starting_bits, timespan, &params);
+        let adjustment = CompactTarget::from_next_work_required_dogecoin(starting_bits, timespan, &params, 480);
         let adjustment_bits = CompactTarget::from_consensus(0x1e00ffff); // Block 480 compact target
         assert_eq!(adjustment, adjustment_bits);
     }
@@ -386,7 +386,7 @@ mod tests {
             bits: epoch_start.bits,
             nonce: epoch_start.nonce
         };
-        let adjustment = CompactTarget::from_header_difficulty_adjustment_dogecoin(epoch_start, current, params);
+        let adjustment = CompactTarget::from_header_difficulty_adjustment_dogecoin(epoch_start, current, params, 240);
         let adjustment_bits = CompactTarget::from_consensus(0x1e0fffff); // Block 240 compact target
         assert_eq!(adjustment, adjustment_bits);
     }
@@ -415,7 +415,7 @@ mod tests {
             bits: starting_bits,
             nonce: 0
         };
-        let adjustment = CompactTarget::from_header_difficulty_adjustment_dogecoin(epoch_start, current, params);
+        let adjustment = CompactTarget::from_header_difficulty_adjustment_dogecoin(epoch_start, current, params, 480);
         let adjustment_bits = CompactTarget::from_consensus(0x1e00ffff); // Block 480 compact target
         assert_eq!(adjustment, adjustment_bits);
     }
@@ -423,25 +423,31 @@ mod tests {
     #[test]
     fn compact_target_from_maximum_upward_difficulty_adjustment() {
         let params = Params::new(Network::Dogecoin);
+        let heights = vec![5000, 10000, 15000];
         let starting_bits = CompactTarget::from_consensus(21403001); // Arbitrary difficulty
         let timespan = (0.06 * params.bitcoin_params.pow_target_timespan as f64) as u64; // > 16x Faster than expected
-        let got = CompactTarget::from_next_work_required_dogecoin(starting_bits, timespan, params);
-        let want = Target::from_compact(starting_bits)
-            .min_transition_threshold_dogecoin(5000)
-            .to_compact_lossy();
-        assert_eq!(got, want);
+        for height in heights {
+            let got = CompactTarget::from_next_work_required_dogecoin(starting_bits, timespan, &params, height);
+            let want = Target::from_compact(starting_bits)
+                .min_transition_threshold_dogecoin(height)
+                .to_compact_lossy();
+            assert_eq!(got, want);
+        }
     }
 
     #[test]
     fn compact_target_from_minimum_downward_difficulty_adjustment() {
         let params = Params::new(Network::Dogecoin);
+        let heights = vec![5000, 10000, 15000];
         let starting_bits = CompactTarget::from_consensus(21403001); // Arbitrary difficulty
         let timespan =  5 * params.bitcoin_params.pow_target_timespan; // > 4x Slower than expected
-        let got = CompactTarget::from_next_work_required_dogecoin(starting_bits, timespan, &params);
-        let want = Target::from_compact(starting_bits)
-            .max_transition_threshold(params)
-            .to_compact_lossy();
-        assert_eq!(got, want);
+        for height in heights {
+            let got = CompactTarget::from_next_work_required_dogecoin(starting_bits, timespan, &params, height);
+            let want = Target::from_compact(starting_bits)
+                .max_transition_threshold(&params)
+                .to_compact_lossy();
+            assert_eq!(got, want);
+        }
     }
 
     #[test]
