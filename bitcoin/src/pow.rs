@@ -479,12 +479,12 @@ impl CompactTarget {
     /// The expected [`CompactTarget`] recalculation.
     pub fn from_next_work_required_dogecoin(
         last: CompactTarget,
-        timespan: u64,
+        timespan: i64,
         params: impl AsRef<DogecoinParams>,
         height: u32
     ) -> CompactTarget {
         let params = params.as_ref();
-        if params.no_pow_retargeting { 
+        if params.no_pow_retargeting {
             return last;
         }
         // Comments relate to the `pow.cpp` file from Core.
@@ -501,8 +501,8 @@ impl CompactTarget {
         let prev_target: Target = last.into();
         let maximum_retarget = prev_target.max_transition_threshold_dogecoin(params); // bnPowLimit
         let retarget = prev_target.0; // bnNew
-        let retarget = retarget.mul(actual_timespan.into());
-        let retarget = retarget.div(params.pow_target_timespan.into());
+        let retarget = retarget.mul((modulated_timespan as u64).into()); // Line 80
+        let retarget = retarget.div((retarget_timespan as u64).into()); // Line 81
         let retarget = Target(retarget);
         if retarget.ge(&maximum_retarget) {
             return maximum_retarget.to_compact_lossy();
