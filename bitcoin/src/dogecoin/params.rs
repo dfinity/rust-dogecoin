@@ -7,7 +7,7 @@
 //!
 
 use crate::dogecoin::Network;
-use crate::{CompactTarget, Target};
+use crate::Target;
 
 /// Parameters that influence chain consensus.
 #[non_exhaustive]
