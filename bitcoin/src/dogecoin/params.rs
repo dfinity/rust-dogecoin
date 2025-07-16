@@ -43,7 +43,7 @@ pub struct Params {
     /// compact-expressible values between Dogecoin Core's and the limit expressed here.
     pub max_attainable_target: Target,
     /// Expected amount of time to mine one block.
-    pub pow_target_spacing: u64,
+    pub pow_target_spacing: i64,
     /// Difficulty recalculation interval.
     pub pow_target_timespan: i64,
     /// Determines whether minimal difficulty may be used for blocks or not.
