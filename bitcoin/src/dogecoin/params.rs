@@ -33,7 +33,7 @@ pub struct Params {
     /// The maximum **attainable** target value for these params.
     ///
     /// Not all target values are attainable because consensus code uses the compact format to
-    /// represent targets (see [`CompactTarget`]).
+    /// represent targets (see [`crate::CompactTarget`]).
     ///
     /// Note that this value differs from Dogecoin Core's powLimit field in that this value is
     /// attainable, but Dogecoin Core's is not. Specifically, because targets in Bitcoin are always
