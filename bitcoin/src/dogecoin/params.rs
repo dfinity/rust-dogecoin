@@ -50,6 +50,8 @@ pub struct Params {
     pub allow_min_difficulty_blocks: bool,
     /// Determines whether retargeting is disabled for this network or not.
     pub no_pow_retargeting: bool,
+    /// Determines whether Digishield is used for difficulty adjustment.
+    pub digishield_activation_height: u32,
 }
 
 /// The mainnet parameters.
@@ -84,6 +86,7 @@ impl Params {
             pow_target_timespan: 4 * 60 * 60, // pre-digishield: 4 hours
             allow_min_difficulty_blocks: false,
             no_pow_retargeting: false,
+            digishield_activation_height: 145000,
     };
 
     /// The Dogecoin testnet parameters.
@@ -101,6 +104,7 @@ impl Params {
             pow_target_timespan: 4 * 60 * 60, // pre-digishield: 4 hours
             allow_min_difficulty_blocks: true,
             no_pow_retargeting: false,
+            digishield_activation_height: 145000,
     };
 
     /// The Dogecoin regtest parameters.
@@ -118,6 +122,7 @@ impl Params {
             pow_target_timespan: 4 * 60 * 60, // pre-digishield: 4 hours
             allow_min_difficulty_blocks: true,
             no_pow_retargeting: true,
+            digishield_activation_height: 10,
     };
 
     /// Creates parameters set for the given network.
@@ -128,8 +133,34 @@ impl Params {
             Network::Regtest => Params::REGTEST,
         }
     }
+
+    /// Checks if Digishield difficulty adjustment is activated at the given block height.
+    pub const fn digishield_activated(&self, height: u32) -> bool {
+         height >= self.digishield_activation_height
+    }
+
 }
 
 impl AsRef<Params> for Params {
     fn as_ref(&self) -> &Params { self }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn digishield_activation() {
+        let pre_digishield_heights = vec![5_000, 10_000, 144_999];
+        let digishield_heights = vec![145_000, 145_001, 1_000_000];
+        let params = vec![Params::MAINNET, Params::TESTNET];
+        for param in params {
+            for &height in pre_digishield_heights.iter() {
+                assert!(!param.digishield_activated(height));
+            }
+            for &height in digishield_heights.iter() {
+                assert!(param.digishield_activated(height));
+            }
+        }
+    }
 }
