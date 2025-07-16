@@ -7,7 +7,11 @@
 //!
 
 use crate::dogecoin::Network;
-use crate::{CompactTarget, Target};
+use crate::Target;
+
+const ONE_SECOND: i64 = 1;
+const ONE_MINUTE: i64 = 60;
+const FOUR_HOURS: i64 = 4 * 60 * 60;
 
 /// Parameters that influence chain consensus.
 #[non_exhaustive]
@@ -43,11 +47,7 @@ pub struct Params {
     /// compact-expressible values between Dogecoin Core's and the limit expressed here.
     pub max_attainable_target: Target,
     /// Expected amount of time to mine one block.
-    pub pow_target_spacing: u64,
-    /// Difficulty recalculation interval.
-    pub pow_target_timespan: u64,
-    /// Determines whether minimal difficulty may be used for blocks or not.
-    pub allow_min_difficulty_blocks: bool,
+    pub pow_target_spacing: i64,
     /// Determines whether retargeting is disabled for this network or not.
     pub no_pow_retargeting: bool,
     /// Determines whether Digishield is used for difficulty adjustment.
@@ -82,9 +82,7 @@ impl Params {
             miner_confirmation_window: 10080, // 60 * 24 * 7 = 10,080 blocks, or one week
             pow_limit: Target::MAX_ATTAINABLE_MAINNET_DOGE,
             max_attainable_target: Target::MAX_ATTAINABLE_MAINNET_DOGE,
-            pow_target_spacing: 60,           // 1 minute
-            pow_target_timespan: 4 * 60 * 60, // pre-digishield: 4 hours
-            allow_min_difficulty_blocks: false,
+            pow_target_spacing: ONE_MINUTE,           // 1 minute
             no_pow_retargeting: false,
             digishield_activation_height: 145000,
     };
@@ -100,9 +98,7 @@ impl Params {
             miner_confirmation_window: 10080,       // 60 * 24 * 7 = 10,080 blocks, or one week
             pow_limit: Target::MAX_ATTAINABLE_TESTNET_DOGE,
             max_attainable_target: Target::MAX_ATTAINABLE_TESTNET_DOGE,
-            pow_target_spacing: 60,           // 1 minute
-            pow_target_timespan: 4 * 60 * 60, // pre-digishield: 4 hours
-            allow_min_difficulty_blocks: true,
+            pow_target_spacing: ONE_MINUTE,           // 1 minute
             no_pow_retargeting: false,
             digishield_activation_height: 145000,
     };
@@ -118,9 +114,7 @@ impl Params {
             miner_confirmation_window: 720,
             pow_limit: Target::MAX_ATTAINABLE_REGTEST_DOGE,
             max_attainable_target: Target::MAX_ATTAINABLE_REGTEST_DOGE,
-            pow_target_spacing: 1,            // regtest: 1 second blocks
-            pow_target_timespan: 4 * 60 * 60, // pre-digishield: 4 hours
-            allow_min_difficulty_blocks: true,
+            pow_target_spacing: ONE_SECOND,            // regtest: 1 second blocks
             no_pow_retargeting: true,
             digishield_activation_height: 10,
     };
@@ -139,6 +133,31 @@ impl Params {
          height >= self.digishield_activation_height
     }
 
+    /// Difficulty recalculation interval.
+    pub const fn pow_target_timespan(&self, height: u32) -> i64 {
+        if !self.digishield_activated(height) {
+            FOUR_HOURS
+        } else {
+            match self.network {
+                Network::Dogecoin => ONE_MINUTE,
+                Network::Testnet => ONE_MINUTE,
+                Network::Regtest => ONE_SECOND,
+            }
+        }
+    }
+
+    /// Determines whether minimal difficulty may be used for blocks or not.
+    pub const fn allow_min_difficulty_blocks(&self, height: u32) -> bool {
+        match self.network {
+            Network::Dogecoin => false,
+            Network::Testnet => match height {
+                0..145_000 => true,
+                145_000..157_500 => false,
+                157_500.. => true,
+            }
+            Network::Regtest => true,
+        }
+    }
 }
 
 impl AsRef<Params> for Params {
