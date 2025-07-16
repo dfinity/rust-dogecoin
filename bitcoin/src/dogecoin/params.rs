@@ -45,7 +45,7 @@ pub struct Params {
     /// Expected amount of time to mine one block.
     pub pow_target_spacing: u64,
     /// Difficulty recalculation interval.
-    pub pow_target_timespan: u64,
+    pub pow_target_timespan: i64,
     /// Determines whether minimal difficulty may be used for blocks or not.
     pub allow_min_difficulty_blocks: bool,
     /// Determines whether retargeting is disabled for this network or not.
