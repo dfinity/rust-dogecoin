@@ -177,6 +177,12 @@ impl Network {
     }
 }
 
+impl AsRef<Params> for Network {
+    fn as_ref(&self) -> &Params {
+        self.params()
+    }
+}
+
 impl fmt::Display for Network {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
