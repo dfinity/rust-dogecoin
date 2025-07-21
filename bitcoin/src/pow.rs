@@ -520,8 +520,8 @@ impl CompactTarget {
         let prev_target: Target = last.into();
         let maximum_retarget = prev_target.max_transition_threshold_dogecoin(params, height); // bnPowLimit
         let retarget = prev_target.0; // bnNew
-        let retarget = retarget.mul((actual_timespan as u64).into()); // Line 80
-        let retarget = retarget.div((params.pow_target_timespan as u64).into()); // Line 81
+        let retarget = retarget.mul((modulated_timespan as u64).into()); // Line 80
+        let retarget = retarget.div((retarget_timespan as u64).into()); // Line 81
         let retarget = Target(retarget);
         if retarget.ge(&maximum_retarget) {
             return maximum_retarget.to_compact_lossy();

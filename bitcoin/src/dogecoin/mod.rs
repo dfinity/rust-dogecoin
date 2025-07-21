@@ -482,9 +482,6 @@ mod tests {
 
         let height = 1_131_286;
         let params = Params::new(Network::Dogecoin);
-        let heights = vec![5000, 10000, 15000];
-        let starting_bits = CompactTarget::from_consensus(21403001); // Arbitrary difficulty
-        let timespan = (0.06 * params.pow_target_timespan as f64) as i64; // > 16x Faster than expected
         // Block 1_131_284, the only information used is `time`
         let epoch_start = Header {
             version: Version::from_consensus(6422787),
@@ -561,7 +558,7 @@ mod tests {
         let height = 480;
         let params = Params::new(Network::Dogecoin);
         let starting_bits = CompactTarget::from_consensus(0x1e0fffff); // Block 240 compact target (max target)
-        let timespan =  4 * params.pow_target_timespan; // 4x Slower than expected
+        let timespan =  4 * params.pow_target_timespan(height); // 4x Slower than expected
         let got = CompactTarget::from_next_work_required_dogecoin(starting_bits, timespan, &params, height);
         let want = params.max_attainable_target.to_compact_lossy();
         assert_eq!(got, want);
