@@ -152,8 +152,8 @@ impl Params {
         match self.network {
             Network::Dogecoin => false,
             Network::Testnet => match height {
-                0..145_000 => true,
-                145_000..157_500 => false,
+                0..=144_999 => true,
+                145_000..=157_499 => false,
                 157_500.. => true,
             }
             Network::Regtest => true,
