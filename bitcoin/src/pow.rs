@@ -19,6 +19,7 @@ use crate::block::Header;
 use crate::blockdata::block::BlockHash;
 use crate::consensus::encode::{self, Decodable, Encodable};
 use crate::consensus::Params;
+use crate::dogecoin::params::Params as DogecoinParams;
 use crate::error::{ContainsPrefixError, MissingPrefixError, ParseIntError, PrefixedHexError, UnprefixedHexError};
 
 /// Implement traits and methods shared by `Target` and `Work`.
@@ -306,7 +307,7 @@ impl Target {
     }
 
     /// Computes the minimum valid [`Target`] threshold allowed for a block in which a difficulty
-    /// adjustment occurs.
+    /// adjustment occurs for Bitcoin.
     ///
     /// The difficulty can only decrease or increase by a factor of 4 max on each difficulty
     /// adjustment period.
@@ -317,7 +318,7 @@ impl Target {
     pub fn min_transition_threshold(&self) -> Self { Self(self.0 >> 2) }
 
     /// Computes the minimum valid [`Target`] threshold allowed for a block in which a difficulty
-    /// adjustment occurs.
+    /// adjustment occurs for Dogecoin.
     ///
     /// The difficulty can only decrease by a factor of 4, 8, or 16 max on each difficulty
     /// adjustment period, depending on the height.
@@ -338,7 +339,7 @@ impl Target {
     }
 
     /// Computes the maximum valid [`Target`] threshold allowed for a block in which a difficulty
-    /// adjustment occurs.
+    /// adjustment occurs for Bitcoin.
     ///
     /// The difficulty can only decrease or increase by a factor of 4 max on each difficulty
     /// adjustment period.
@@ -346,6 +347,19 @@ impl Target {
     /// We also check that the calculated target is not greater than the maximum allowed target,
     /// this value is network specific - hence the `params` parameter.
     pub fn max_transition_threshold(&self, params: impl AsRef<Params>) -> Self {
+        let max_attainable = params.as_ref().max_attainable_target;
+        cmp::min(self.max_transition_threshold_unchecked(), max_attainable)
+    }
+
+    /// Computes the maximum valid [`Target`] threshold allowed for a block in which a difficulty
+    /// adjustment occurs for Dogecoin.
+    ///
+    /// The difficulty can only decrease or increase by a factor of 4 max on each difficulty
+    /// adjustment period.
+    ///
+    /// We also check that the calculated target is not greater than the maximum allowed target,
+    /// this value is network specific - hence the `params` parameter.
+    pub fn max_transition_threshold_dogecoin(&self, params: impl AsRef<DogecoinParams>) -> Self {
         let max_attainable = params.as_ref().max_attainable_target;
         cmp::min(self.max_transition_threshold_unchecked(), max_attainable)
     }
@@ -465,12 +479,12 @@ impl CompactTarget {
     /// The expected [`CompactTarget`] recalculation.
     pub fn from_next_work_required_dogecoin(
         last: CompactTarget,
-        timespan: u64,
-        params: impl AsRef<Params>,
+        timespan: i64,
+        params: impl AsRef<DogecoinParams>,
         height: u32
     ) -> CompactTarget {
         let params = params.as_ref();
-        if params.no_pow_retargeting { 
+        if params.no_pow_retargeting {
             return last;
         }
         // Comments relate to the `pow.cpp` file from Core.
@@ -485,10 +499,10 @@ impl CompactTarget {
         };
         let actual_timespan = timespan.clamp(min_timespan, max_timespan); // Lines 69-72 nModulatedTimespan
         let prev_target: Target = last.into();
-        let maximum_retarget = prev_target.max_transition_threshold(params); // bnPowLimit
+        let maximum_retarget = prev_target.max_transition_threshold_dogecoin(params); // bnPowLimit
         let retarget = prev_target.0; // bnNew
-        let retarget = retarget.mul(actual_timespan.into());
-        let retarget = retarget.div(params.pow_target_timespan.into());
+        let retarget = retarget.mul((actual_timespan as u64).into()); // Line 80
+        let retarget = retarget.div((params.pow_target_timespan as u64).into()); // Line 81
         let retarget = Target(retarget);
         if retarget.ge(&maximum_retarget) {
             return maximum_retarget.to_compact_lossy();
@@ -551,7 +565,7 @@ impl CompactTarget {
     pub fn from_header_difficulty_adjustment_dogecoin(
         last_epoch_boundary: Header,
         current: Header,
-        params: impl AsRef<Params>,
+        params: impl AsRef<DogecoinParams>,
         height: u32
     ) -> CompactTarget {
         let timespan = current.time - last_epoch_boundary.time;

@@ -7,25 +7,49 @@
 //!
 
 use crate::dogecoin::Network;
-use crate::network::Network as BitcoinNetwork;
-use crate::params::Params as BitcoinParams;
 use crate::Target;
 
 /// Parameters that influence chain consensus.
-#[derive(Debug, Clone)]
-pub struct Params {
-    /// Parameters inherited from Bitcoin, reused for Dogecoin consensus.
-    pub bitcoin_params: BitcoinParams,
-    /// Parameters that are not inherited from Bitcoin.
-    pub dogecoin_params: DogecoinParams,
-}
-
-/// Dogecoin-specific consensus parameters.
 #[non_exhaustive]
 #[derive(Debug, Clone)]
-pub struct DogecoinParams {
+pub struct Params {
     /// Network for which parameters are valid.
     pub network: Network,
+    /// Time when BIP16 becomes active.
+    pub bip16_time: u32,
+    /// Block height at which BIP34 becomes active.
+    pub bip34_height: u32,
+    /// Block height at which BIP65 becomes active.
+    pub bip65_height: u32,
+    /// Block height at which BIP66 becomes active.
+    pub bip66_height: u32,
+    /// Minimum blocks including miner confirmation.
+    pub rule_change_activation_threshold: u32,
+    /// Number of blocks with the same set of rules.
+    pub miner_confirmation_window: u32,
+    /// Proof of work limit value. It contains the lowest possible difficulty.
+    #[deprecated(since = "0.32.0", note = "field renamed to max_attainable_target")]
+    pub pow_limit: Target,
+    /// The maximum **attainable** target value for these params.
+    ///
+    /// Not all target values are attainable because consensus code uses the compact format to
+    /// represent targets (see [`crate::CompactTarget`]).
+    ///
+    /// Note that this value differs from Dogecoin Core's powLimit field in that this value is
+    /// attainable, but Dogecoin Core's is not. Specifically, because targets in Bitcoin are always
+    /// rounded to the nearest float expressible in "compact form", not all targets are attainable.
+    /// Still, this should not affect consensus as the only place where the non-compact form of
+    /// this is used in Dogecoin Core's consensus algorithm is in comparison and there are no
+    /// compact-expressible values between Dogecoin Core's and the limit expressed here.
+    pub max_attainable_target: Target,
+    /// Expected amount of time to mine one block.
+    pub pow_target_spacing: i64,
+    /// Difficulty recalculation interval.
+    pub pow_target_timespan: i64,
+    /// Determines whether minimal difficulty may be used for blocks or not.
+    pub allow_min_difficulty_blocks: bool,
+    /// Determines whether retargeting is disabled for this network or not.
+    pub no_pow_retargeting: bool,
 }
 
 /// The mainnet parameters.
@@ -47,8 +71,7 @@ impl Params {
 
     /// The mainnet parameters.
     pub const MAINNET: Params = Params {
-        bitcoin_params: BitcoinParams {
-            network: BitcoinNetwork::Bitcoin,
+            network: Network::Dogecoin,
             bip16_time: 1333238400,                 // Apr 1 2012
             bip34_height: 1034383, // 80d1364201e5df97e696c03bdd24dc885e8617b9de51e453c10a4f629b1e797a
             bip65_height: 3464751, // 34cd2cbba4ba366f47e5aa0db5f02c19eba2adf679ceb6653ac003bdc9a0ef1f
@@ -61,14 +84,11 @@ impl Params {
             pow_target_timespan: 4 * 60 * 60, // pre-digishield: 4 hours
             allow_min_difficulty_blocks: false,
             no_pow_retargeting: false,
-        },
-        dogecoin_params: DogecoinParams { network: Network::Dogecoin },
     };
 
     /// The Dogecoin testnet parameters.
     pub const TESTNET: Params = Params {
-        bitcoin_params: BitcoinParams {
-            network: BitcoinNetwork::Testnet,
+            network: Network::Testnet,
             bip16_time: 1333238400,                 // Apr 1 2012
             bip34_height: 708658, // 21b8b97dcdb94caa67c7f8f6dbf22e61e0cfe0e46e1fff3528b22864659e9b38
             bip65_height: 1854705, // 955bd496d23790aba1ecfacb722b089a6ae7ddabaedf7d8fb0878f48308a71f9
@@ -81,14 +101,11 @@ impl Params {
             pow_target_timespan: 4 * 60 * 60, // pre-digishield: 4 hours
             allow_min_difficulty_blocks: true,
             no_pow_retargeting: false,
-        },
-        dogecoin_params: DogecoinParams { network: Network::Testnet },
     };
 
     /// The Dogecoin regtest parameters.
     pub const REGTEST: Params = Params {
-        bitcoin_params: BitcoinParams {
-            network: BitcoinNetwork::Regtest,
+            network: Network::Regtest,
             bip16_time: 1333238400,  // Apr 1 2012
             bip34_height: 100000000, // not activated on regtest
             bip65_height: 1351,
@@ -101,8 +118,6 @@ impl Params {
             pow_target_timespan: 4 * 60 * 60, // pre-digishield: 4 hours
             allow_min_difficulty_blocks: true,
             no_pow_retargeting: true,
-        },
-        dogecoin_params: DogecoinParams { network: Network::Regtest },
     };
 
     /// Creates parameters set for the given network.
@@ -113,10 +128,6 @@ impl Params {
             Network::Regtest => Params::REGTEST,
         }
     }
-}
-
-impl AsRef<BitcoinParams> for Params {
-    fn as_ref(&self) -> &BitcoinParams { &self.bitcoin_params }
 }
 
 impl AsRef<Params> for Params {
