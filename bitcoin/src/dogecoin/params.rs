@@ -171,9 +171,9 @@ mod tests {
 
     #[test]
     fn digishield_activation() {
-        let pre_digishield_heights = vec![5_000, 10_000, 144_999];
-        let digishield_heights = vec![145_000, 145_001, 1_000_000];
-        let params = vec![Params::MAINNET, Params::TESTNET];
+        let pre_digishield_heights = [5_000, 10_000, 144_999];
+        let digishield_heights = [145_000, 145_001, 1_000_000];
+        let params = [Params::MAINNET, Params::TESTNET];
         for param in params {
             for &height in pre_digishield_heights.iter() {
                 assert!(!param.digishield_activated(height));
