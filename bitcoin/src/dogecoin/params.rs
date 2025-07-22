@@ -51,7 +51,7 @@ pub struct Params {
     pub pow_target_spacing: i64,
     /// Determines whether retargeting is disabled for this network or not.
     pub no_pow_retargeting: bool,
-    /// Determines whether Digishield is used for difficulty adjustment.
+    /// Height after which the Digishield difficulty adjustment algorithm is used.
     pub digishield_activation_height: u32,
 }
 
