@@ -11,7 +11,7 @@ use hashes::{sha256d, Hash};
 use units::Amount;
 
 use crate::dogecoin::params::Params;
-use crate::dogecoin::{Block, Network};
+use crate::dogecoin::{Block, Header, Network};
 use crate::opcodes::all::OP_CHECKSIG;
 use crate::{
     absolute, block, script, transaction, CompactTarget, OutPoint, Sequence, Transaction, TxIn,
@@ -83,39 +83,36 @@ pub fn genesis_block(params: impl AsRef<Params>) -> Block {
 
     match params.network {
         Network::Dogecoin => Block {
-            header: block::Header {
+            header: Header::new_from_pure_header(block::Header {
                 version: block::Version::ONE,
                 prev_blockhash: Hash::all_zeros(),
                 merkle_root,
                 time: 1386325540,
                 bits: CompactTarget::from_consensus(0x1e0ffff0),
                 nonce: 99943,
-            },
-            auxpow: None,
+            }),
             txdata,
         },
         Network::Testnet => Block {
-            header: block::Header {
+            header: Header::new_from_pure_header(block::Header {
                 version: block::Version::ONE,
                 prev_blockhash: Hash::all_zeros(),
                 merkle_root,
                 time: 1391503289,
                 bits: CompactTarget::from_consensus(0x1e0ffff0),
                 nonce: 997879,
-            },
-            auxpow: None,
+            }),
             txdata,
         },
         Network::Regtest => Block {
-            header: block::Header {
+            header: Header::new_from_pure_header(block::Header {
                 version: block::Version::ONE,
                 prev_blockhash: Hash::all_zeros(),
                 merkle_root,
                 time: 1296688602,
                 bits: CompactTarget::from_consensus(0x207fffff),
                 nonce: 2,
-            },
-            auxpow: None,
+            }),
             txdata,
         },
     }

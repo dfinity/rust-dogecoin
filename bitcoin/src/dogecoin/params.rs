@@ -50,6 +50,11 @@ pub struct Params {
     pub allow_min_difficulty_blocks: bool,
     /// Determines whether retargeting is disabled for this network or not.
     pub no_pow_retargeting: bool,
+    /// Height after which mining with AuxPoW is allowed.
+    pub auxpow_height: u32,
+    /// TODO: add doc
+    pub strict_chain_id: bool,
+    pub auxpow_chain_id: i32,
 }
 
 /// The mainnet parameters.
@@ -84,6 +89,9 @@ impl Params {
             pow_target_timespan: 4 * 60 * 60, // pre-digishield: 4 hours
             allow_min_difficulty_blocks: false,
             no_pow_retargeting: false,
+            auxpow_height: 371_337,
+            strict_chain_id: true,
+            auxpow_chain_id: 0x0062,
     };
 
     /// The Dogecoin testnet parameters.
@@ -101,6 +109,9 @@ impl Params {
             pow_target_timespan: 4 * 60 * 60, // pre-digishield: 4 hours
             allow_min_difficulty_blocks: true,
             no_pow_retargeting: false,
+            auxpow_height: 158_100,
+            strict_chain_id: false,
+            auxpow_chain_id: 0x0062,
     };
 
     /// The Dogecoin regtest parameters.
@@ -118,6 +129,9 @@ impl Params {
             pow_target_timespan: 4 * 60 * 60, // pre-digishield: 4 hours
             allow_min_difficulty_blocks: true,
             no_pow_retargeting: true,
+            auxpow_height: 20,
+            strict_chain_id: true,
+            auxpow_chain_id: 0x0062,
     };
 
     /// Creates parameters set for the given network.
@@ -127,6 +141,11 @@ impl Params {
             Network::Testnet => Params::TESTNET,
             Network::Regtest => Params::REGTEST,
         }
+    }
+
+    /// Checks if legacy blocks can be mined at the given block height.
+    pub const fn allow_legacy_blocks(&self, height: u32) -> bool {
+        height < self.auxpow_height
     }
 }
 

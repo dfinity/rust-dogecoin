@@ -11,20 +11,58 @@ pub mod params;
 
 pub use address::*;
 
-use crate::block::{Header, TxMerkleNode};
+use crate::block::{Header as PureHeader, TxMerkleNode, Version};
 use crate::consensus::{encode, Decodable, Encodable};
 use crate::dogecoin::params::Params;
 use crate::internal_macros::impl_consensus_encoding;
 use crate::io::{Read, Write};
 use crate::p2p::Magic;
 use crate::prelude::*;
-use crate::{io, BlockHash, Transaction};
+use crate::{io, BlockHash, Target, Transaction};
 use core::fmt;
+use hashes::Hash;
+use std::ops::{Deref, DerefMut};
 
 /// AuxPow version bit, see <https://github.com/dogecoin/dogecoin/blob/d7cc7f8bbb5f790942d0ed0617f62447e7675233/src/primitives/pureheader.h#L23>
 pub const VERSION_AUXPOW: i32 = 1 << 8;
 
-fn is_auxpow(header: Header) -> bool { (header.version.to_consensus() & VERSION_AUXPOW) != 0 }
+const MERGED_MINING_HEADER: [u8; 4] = [0xfa, 0xbe, b'm', b'm'];
+
+/// A block validation error.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum AuxPowValidationError {
+    /// The header hash is not below the target.
+    BadProofOfWork,
+    /// The `target` field of a block header did not match the expected difficulty.
+    BadTarget,
+    BadAuxPoW,
+    MissingMerkleRoot,
+    MultipleHeaders,
+    HeaderNotAdjacent,
+    LegacyRootTooFar,
+    MissingMerkleSizeAndNonce,
+    BadMerkleBranchSize,
+    BadMerkleIndex
+}
+
+impl fmt::Display for AuxPowValidationError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            AuxPowValidationError::MissingMerkleRoot =>
+                write!(f, "Aux POW missing chain merkle root in parent coinbase"),
+            AuxPowValidationError::MultipleHeaders =>
+                write!(f, "Multiple merged mining headers in coinbase"),
+            AuxPowValidationError::HeaderNotAdjacent =>
+                write!(f, "Merged mining header is not just before chain merkle root"),
+            AuxPowValidationError::LegacyRootTooFar =>
+                write!(f, "Aux POW chain merkle root must start in the first 20 bytes of the parent coinbase"),
+            AuxPowValidationError::MissingMerkleSizeAndNonce =>
+                write!(f, "Aux POW missing chain merkle tree size and nonce in parent coinbase"),
+            _ => todo!(),
+        }
+    }
+}
 
 /// Data for merge-mining AuxPoW.
 ///
@@ -46,8 +84,171 @@ pub struct AuxPow {
     pub blockchain_branch: Vec<TxMerkleNode>,
     /// The index of the merged-mined block in the Merkle tree.
     pub blockchain_index: i32,
-    /// Parent block header (on which the PoW is done).
-    pub parent_block: Header,
+    /// Parent block header on which the PoW is done.
+    pub parent_block_header: PureHeader,
+}
+
+impl AuxPow {
+    /// Helper method to produce SHA256D(left + right) - same as PartialMerkleTree::parent_hash
+    fn parent_hash(left: TxMerkleNode, right: TxMerkleNode) -> TxMerkleNode {
+        let mut encoder = TxMerkleNode::engine();
+        left.consensus_encode(&mut encoder).expect("engines don't error");
+        right.consensus_encode(&mut encoder).expect("engines don't error");
+        TxMerkleNode::from_engine(encoder)
+    }
+
+    /// Verify merkle branch using the existing Bitcoin merkle hash function
+    fn check_merkle_branch(
+        hash: BlockHash,
+        branch: &[TxMerkleNode],
+        index: i32,
+    ) -> TxMerkleNode {
+        let mut result_hash = TxMerkleNode::from_byte_array(hash.to_byte_array());
+        let mut index = index;
+
+        for branch_hash in branch {
+            if index & 1 == 1 {
+                // Hash is on the right, branch element on the left
+                result_hash = Self::parent_hash(*branch_hash, result_hash);
+            } else {
+                // Hash is on the left, branch element on the right
+                result_hash = Self::parent_hash(result_hash, *branch_hash);
+            }
+            index >>= 1;
+        }
+
+        result_hash
+    }
+
+    fn check_merge_mining_header(
+        &self,
+        script: &[u8],
+        blockchain_merkle_root: &[u8; 32],
+        chain_id: i32,
+    ) -> Result<(), AuxPowValidationError> {
+        let root_pos = Self::find_bytes(script, blockchain_merkle_root)
+            .ok_or(AuxPowValidationError::MissingMerkleRoot)?;
+
+        // Search for merged mining header
+        match Self::find_bytes(script, &MERGED_MINING_HEADER) {
+            Some(header_pos) => {
+                // Check for multiple headers
+                let search_start = header_pos + MERGED_MINING_HEADER.len();
+                if Self::find_bytes(&script[search_start..], &MERGED_MINING_HEADER).is_some() {
+                    return Err(AuxPowValidationError::MultipleHeaders);
+                }
+                // Check that header immediately precedes merkle root
+                if header_pos + MERGED_MINING_HEADER.len() != root_pos {
+                    return Err(AuxPowValidationError::HeaderNotAdjacent);
+                }
+            }
+            None => {
+                // For backward compatibility: merkle root must start early in coinbase
+                // 8-12 bytes are enough to encode extraNonce and nBits
+                if root_pos > 20 {
+                    return Err(AuxPowValidationError::LegacyRootTooFar);
+                }
+            }
+        }
+
+        // Check merkle tree size and nonce
+        let pos_after_root = root_pos + MERGED_MINING_HEADER.len();
+        let remaining_script = &script[pos_after_root..];
+        
+        if remaining_script.len() < 8 {
+            return Err(AuxPowValidationError::MissingMerkleSizeAndNonce);
+        }
+
+        let size_bytes = [remaining_script[0], remaining_script[1], remaining_script[2], remaining_script[3]];
+        let size = u32::from_le_bytes(size_bytes);
+        
+        let merkle_height = self.blockchain_branch.len();
+        if size != (1u32 << merkle_height) {
+            return Err(AuxPowValidationError::BadMerkleBranchSize);
+        }
+
+        let nonce_bytes = [remaining_script[4], remaining_script[5], remaining_script[6], remaining_script[7]];
+        let nonce = u32::from_le_bytes(nonce_bytes);
+        
+        let expected_index = Self::get_expected_index(nonce, chain_id, merkle_height);
+        if self.blockchain_index != expected_index {
+            return Err(AuxPowValidationError::BadMerkleIndex);
+        }
+
+        Ok(())
+    }
+
+    /// Returns the byte offset of the first occurrence of `needle` in `haystack`.
+    /// If the `needle` is not found, returns `None`.
+    fn find_bytes(haystack: &[u8], needle: &[u8]) -> Option<usize> {
+        if needle.is_empty() {
+            return Some(0);
+        }
+        haystack
+            .windows(needle.len())
+            .position(|window| window == needle)
+    }
+
+    /// Calculate the expected index for the blockchain in the merkle tree.
+    /// Choose a pseudo-random slot in the chain merkle tree but have it be fixed 
+    /// for a size/nonce/chain combination.
+    ///
+    /// This prevents the same work from being used twice for the same chain while 
+    /// reducing the chance that two chains clash for the same slot.
+    /// 
+    /// Ref: <https://github.com/dogecoin/dogecoin/blob/51cbc1fd5d0d045dda2ad84f53572bbf524c6a8e/src/auxpow.cpp#L164>
+    fn get_expected_index(nonce: u32, chain_id: i32, merkle_height: usize) -> i32 {
+        // The original C++ implementation mentions that this computation can overflow
+        // and this is not an issue. In C++, unsigned integer overflows automatically wrap around.
+        // To replicate the wrapping behavior, we use `wrapping_mul` and `wrapping_add`.
+
+        let mut rand = nonce;
+        rand = rand.wrapping_mul(1103515245).wrapping_add(12345);
+        rand = rand.wrapping_add(chain_id as u32);
+        rand = rand.wrapping_mul(1103515245).wrapping_add(12345);
+        
+        (rand % (1u32 << merkle_height)) as i32
+    }
+
+    pub fn check(&self, aux_block_hash: BlockHash, chain_id: i32, strict_chain_id: bool) -> Result<(), AuxPowValidationError> {
+        if self.coinbase_index != 0 {
+            return Err(AuxPowValidationError::BadAuxPoW);
+        }
+
+        if strict_chain_id && get_chain_id(&self.parent_block_header) == chain_id {
+            return Err(AuxPowValidationError::BadAuxPoW);
+        }
+
+        if self.blockchain_branch.len() > 30 {
+            return Err(AuxPowValidationError::BadAuxPoW);
+        }
+
+        // Check that the chain merkle root is in the coinbase
+        let blockchain_merkle_root = Self::check_merkle_branch(aux_block_hash, &self.blockchain_branch, self.blockchain_index);
+
+        // Check coinbase merkle branch
+        let coinbase_hash = self.coinbase_tx.compute_txid();
+        let coinbase_merkle_root = Self::check_merkle_branch(
+            BlockHash::from_byte_array(coinbase_hash.to_byte_array()),
+            &self.coinbase_branch,
+            self.coinbase_index
+        );
+
+        // Verify the coinbase merkle root matches the parent block's merkle root
+        if coinbase_merkle_root != self.parent_block_header.merkle_root {
+            return Err(AuxPowValidationError::BadAuxPoW);
+        }
+
+        if self.coinbase_tx.input.is_empty() {
+            return Err(AuxPowValidationError::BadAuxPoW);
+        }
+
+        let script = &self.coinbase_tx.input[0].script_sig;
+
+        self.check_merge_mining_header(script.as_bytes(), &blockchain_merkle_root.to_byte_array(), chain_id)?;
+
+        Ok(())
+    }
 }
 
 impl_consensus_encoding!(
@@ -58,8 +259,89 @@ impl_consensus_encoding!(
     coinbase_index,
     blockchain_branch,
     blockchain_index,
-    parent_block
+    parent_block_header
 );
+
+
+/// Dogecoin block header.
+///
+/// ### Dogecoin Core References
+///
+/// * [CBlockHeader definition](https://github.com/dogecoin/dogecoin/blob/7237da74b8c356568644cbe4fba19d994704355b/src/primitives/block.h#L23)
+#[derive(PartialEq, Eq, Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(crate = "actual_serde"))]
+pub struct Header {
+    /// Block header without AuxPoW information.
+    pub pure_header: PureHeader,
+    /// AuxPoW structure, present if merged mining was used to mine this block.
+    pub aux_pow: Option<AuxPow>,
+}
+
+impl Deref for Header {
+    type Target = PureHeader;
+    fn deref(&self) -> &Self::Target {
+        &self.pure_header
+    }
+}
+
+impl DerefMut for Header {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.pure_header
+    }
+}
+
+pub fn has_auxpow(header: &PureHeader) -> bool {
+    (header.version.to_consensus() & VERSION_AUXPOW) != 0 // TODO: maybe there is a better way than using to_consensus() everywhere
+}
+
+pub fn get_chain_id(header: &PureHeader) -> i32 {
+    header.version.to_consensus() >> 16
+}
+
+pub fn is_legacy(header: &PureHeader) -> bool {
+    header.version == Version::ONE
+        // Dogecoin: We have a random v2 block with no AuxPoW, treat as legacy
+        || (header.version == Version::TWO && get_chain_id(header) == 0)
+}
+
+pub fn base_version(header: &PureHeader) -> i32 {
+    header.version.to_consensus() % VERSION_AUXPOW
+}
+
+impl Header {
+    pub fn new_from_pure_header(pure_header: PureHeader) -> Self {
+        Self { pure_header, aux_pow: None }
+    }
+}
+
+impl Decodable for Header {
+    #[inline]
+    fn consensus_decode_from_finite_reader<R: Read + ?Sized>(
+        r: &mut R,
+    ) -> Result<Self, encode::Error> {
+        let pure_header: PureHeader = Decodable::consensus_decode_from_finite_reader(r)?;
+        let aux_pow = if has_auxpow(&pure_header) {
+            Some(Decodable::consensus_decode_from_finite_reader(r)?)
+        } else {
+            None
+        };
+
+        Ok(Self { pure_header, aux_pow })
+    }
+}
+
+impl Encodable for Header {
+    #[inline]
+    fn consensus_encode<W: Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
+        let mut len = 0;
+        len += self.pure_header.consensus_encode(w)?;
+        if let Some(ref aux_pow) = self.aux_pow {
+            len += aux_pow.consensus_encode(w)?;
+        }
+        Ok(len)
+    }
+}
 
 /// Dogecoin block.
 ///
@@ -79,10 +361,8 @@ impl_consensus_encoding!(
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "actual_serde"))]
 pub struct Block {
-    /// The block header.
+    /// The Dogecoin block header.
     pub header: Header,
-    /// AuxPoW structure, present if merged mining was used to mine this block.
-    pub auxpow: Option<AuxPow>,
     /// List of transactions contained in the block.
     pub txdata: Vec<Transaction>,
 }
@@ -112,35 +392,7 @@ impl Block {
     }
 }
 
-impl Decodable for Block {
-    #[inline]
-    fn consensus_decode_from_finite_reader<R: Read + ?Sized>(
-        r: &mut R,
-    ) -> Result<Self, encode::Error> {
-        let header: Header = Decodable::consensus_decode_from_finite_reader(r)?;
-        let auxpow = if is_auxpow(header) {
-            Some(Decodable::consensus_decode_from_finite_reader(r)?)
-        } else {
-            None
-        };
-        let txdata = Decodable::consensus_decode_from_finite_reader(r)?;
-
-        Ok(Self { header, auxpow, txdata })
-    }
-}
-
-impl Encodable for Block {
-    #[inline]
-    fn consensus_encode<W: Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
-        let mut len = 0;
-        len += self.header.consensus_encode(w)?;
-        if let Some(ref auxpow) = self.auxpow {
-            len += auxpow.consensus_encode(w)?;
-        }
-        len += self.txdata.consensus_encode(w)?;
-        Ok(len)
-    }
-}
+impl_consensus_encoding!(Block, header, txdata);
 
 /// The cryptocurrency network to act on.
 #[derive(Copy, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
@@ -245,7 +497,7 @@ mod tests {
         assert_eq!(real_decode.header.work(), work);
         assert_eq!(
             real_decode.header.validate_pow_with_scrypt(real_decode.header.target()).unwrap(),
-            real_decode.block_hash_with_scrypt()
+            real_decode.header.block_hash_with_scrypt()
         );
         // Bitcoin network is used because Dogecoin's difficulty calculation is based on Bitcoin's,
         // which uses Bitcoin's `max_attainable_target` value
@@ -375,14 +627,14 @@ mod tests {
         let params = Params::new(Network::Dogecoin);
         let epoch_start = genesis_block(&params).header;
         // Block 239, the only information used are `bits` and `time`
-        let current = Header {
+        let current = Header::new_from_pure_header( PureHeader{
             version: Version::ONE,
             prev_blockhash: BlockHash::all_zeros(),
             merkle_root: TxMerkleNode::all_zeros(),
             time: 1386475638,
             bits: epoch_start.bits,
             nonce: epoch_start.nonce
-        };
+        });
         let adjustment = CompactTarget::from_header_difficulty_adjustment_dogecoin(epoch_start, current, params, height);
         let adjustment_bits = CompactTarget::from_consensus(0x1e0fffff); // Block 240 compact target
         assert_eq!(adjustment, adjustment_bits);
@@ -397,23 +649,23 @@ mod tests {
         let params = Params::new(Network::Dogecoin);
         let starting_bits = CompactTarget::from_consensus(0x1e0fffff); // Block 479 compact target
         // Block 239, the only information used is `time`
-        let epoch_start = Header {
+        let epoch_start = Header::new_from_pure_header( PureHeader{
             version: Version::ONE,
             prev_blockhash: BlockHash::all_zeros(),
             merkle_root: TxMerkleNode::all_zeros(),
             time: 1386475638,
             bits: starting_bits,
             nonce: 0
-        };
+        });
         // Block 479, the only information used are `bits` and `time`
-        let current = Header {
+        let current = Header::new_from_pure_header( PureHeader{
             version: Version::ONE,
             prev_blockhash: BlockHash::all_zeros(),
             merkle_root: TxMerkleNode::all_zeros(),
             time: 1386475840,
             bits: starting_bits,
             nonce: 0
-        };
+        });
         let adjustment = CompactTarget::from_header_difficulty_adjustment_dogecoin(epoch_start, current, params, height);
         let adjustment_bits = CompactTarget::from_consensus(0x1e00ffff); // Block 480 compact target
         assert_eq!(adjustment, adjustment_bits);
