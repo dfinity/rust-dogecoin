@@ -5,6 +5,7 @@
 //! This module provides support for de/serialization, parsing and execution on data structures and
 //! network messages related to Dogecoin.
 
+// TODO: format using formatter
 pub mod address;
 pub mod constants;
 pub mod params;
@@ -18,7 +19,7 @@ use crate::internal_macros::impl_consensus_encoding;
 use crate::io::{Read, Write};
 use crate::p2p::Magic;
 use crate::prelude::*;
-use crate::{io, BlockHash, Target, Transaction};
+use crate::{io, BlockHash, Transaction};
 use core::fmt;
 use hashes::Hash;
 use std::ops::{Deref, DerefMut};
@@ -28,46 +29,92 @@ pub const VERSION_AUXPOW: i32 = 1 << 8;
 
 const MERGED_MINING_HEADER: [u8; 4] = [0xfa, 0xbe, b'm', b'm'];
 
-/// A block validation error.
+/// AuxPow validation error.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[non_exhaustive]
 pub enum AuxPowValidationError {
-    /// The header hash is not below the target.
-    BadProofOfWork,
-    /// The `target` field of a block header did not match the expected difficulty.
-    BadTarget,
-    BadAuxPoW,
-    MissingMerkleRoot,
-    MultipleHeaders,
-    HeaderNotAdjacent,
-    LegacyRootTooFar,
-    MissingMerkleSizeAndNonce,
-    BadMerkleBranchSize,
-    BadMerkleIndex
+    /// Aux POW does not originate from a valid coinbase transaction
+    AuxPowNotFromCoinbase,
+    /// Chain ID is duplicated in both parent and current block
+    ParentHasSameChainId,
+    /// Aux POW blockchain merkle branch is too long
+    ChainMerkleBranchTooLong,
+    /// Aux POW coinbase transaction has invalid merkle proof
+    InvalidCoinbaseMerkleProof,
+    /// Aux POW coinbase transaction has no inputs
+    CoinbaseHasNoInputs,
+    /// Invalid script in coinbase transaction
+    InvalidAuxPowCoinbaseScript(AuxPowCoinbaseScriptValidationError)
 }
 
 impl fmt::Display for AuxPowValidationError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            AuxPowValidationError::MissingMerkleRoot =>
-                write!(f, "Aux POW missing chain merkle root in parent coinbase"),
-            AuxPowValidationError::MultipleHeaders =>
-                write!(f, "Multiple merged mining headers in coinbase"),
-            AuxPowValidationError::HeaderNotAdjacent =>
-                write!(f, "Merged mining header is not just before chain merkle root"),
-            AuxPowValidationError::LegacyRootTooFar =>
-                write!(f, "Aux POW chain merkle root must start in the first 20 bytes of the parent coinbase"),
-            AuxPowValidationError::MissingMerkleSizeAndNonce =>
-                write!(f, "Aux POW missing chain merkle tree size and nonce in parent coinbase"),
-            _ => todo!(),
+            AuxPowValidationError::AuxPowNotFromCoinbase =>
+                write!(f, "Aux POW does not originate from a valid coinbase transaction"),
+            AuxPowValidationError::ParentHasSameChainId =>
+                write!(f, "Chain ID duplicated in both parent and current block"),
+            AuxPowValidationError::ChainMerkleBranchTooLong =>
+                write!(f, "Aux POW blockchain merkle branch too long"),
+            AuxPowValidationError::InvalidCoinbaseMerkleProof =>
+                write!(f, "Aux POW coinbase transaction has invalid merkle proof"),
+            AuxPowValidationError::CoinbaseHasNoInputs =>
+                write!(f, "Aux POW coinbase transaction has no inputs"),
+            AuxPowValidationError::InvalidAuxPowCoinbaseScript(err) =>
+                write!(f, "{}", err),
         }
     }
 }
 
-/// Data for merge-mining AuxPoW.
+/// AuxPow coinbase script validation error.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AuxPowCoinbaseScriptValidationError {
+    /// The blockchain merkle root is missing from the coinbase transaction
+    MissingMerkleRoot,
+    /// There are multiple merged mining headers in the coinbase transaction
+    MultipleHeaders,
+    /// Merged mining header is not just before the blockchain merkle root
+    HeaderNotAdjacent,
+    /// Blockchain merkle root must start in the first 20 bytes of the coinbase transaction
+    LegacyRootTooFar,
+    /// Missing blockchain merkle tree size and nonce in the coinbase transaction
+    MissingMerkleSizeAndNonce,
+    /// Blockchain merkle branch size does not match merkle size in the coinbase transaction
+    MerkleSizeMismatch,
+    /// Blockchain index does not match expected value derived from nonce and chain ID
+    InvalidChainIndex
+}
+
+impl fmt::Display for AuxPowCoinbaseScriptValidationError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            AuxPowCoinbaseScriptValidationError::MissingMerkleRoot =>
+                write!(f, "Aux POW missing blockchain merkle root in coinbase transaction"),
+            AuxPowCoinbaseScriptValidationError::MultipleHeaders =>
+                write!(f, "Aux POW with multiple merged mining headers in coinbase transaction"),
+            AuxPowCoinbaseScriptValidationError::HeaderNotAdjacent =>
+                write!(f, "Aux POW merged mining header not just before blockchain merkle root"),
+            AuxPowCoinbaseScriptValidationError::LegacyRootTooFar =>
+                write!(f, "Aux POW blockchain merkle root must start in first 20 bytes of the coinbase transaction"),
+            AuxPowCoinbaseScriptValidationError::MissingMerkleSizeAndNonce =>
+                write!(f, "Aux POW missing blockchain merkle tree size and nonce in coinbase transaction"),
+            AuxPowCoinbaseScriptValidationError::MerkleSizeMismatch =>
+                write!(f, "Aux POW merkle blockchain branch size does not match merkle size in coinbase transaction"),
+            AuxPowCoinbaseScriptValidationError::InvalidChainIndex =>
+                write!(f, "Aux POW blockchain index does not match expected value derived from nonce and chain ID"),
+        }
+    }
+}
+
+impl Into<AuxPowValidationError> for AuxPowCoinbaseScriptValidationError {
+    fn into(self) -> AuxPowValidationError {
+        AuxPowValidationError::InvalidAuxPowCoinbaseScript(self)
+    }
+}
+
+/// Data for merged-mining AuxPow.
 ///
 /// It contains the parent block's coinbase tx that can be verified to be in the parent block.
-/// The transaction's input contains the hash to the actual merge-mined block.
+/// The transaction's input contains the hash to the actual merged-mined block.
 #[derive(PartialEq, Eq, Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "actual_serde"))]
@@ -78,18 +125,29 @@ pub struct AuxPow {
     pub parent_hash: BlockHash,
     /// The Merkle branch linking the coinbase tx to the parent block's Merkle root.
     pub coinbase_branch: Vec<TxMerkleNode>,
-    /// The index of the coinbase tx in the Merkle tree.
+    /// The index of the coinbase tx in the Merkle tree. Must be 0.
     pub coinbase_index: i32,
-    /// The Merkle branch linking the merge-mined block to the coinbase tx.
+    /// The Merkle branch linking the merged-mined header to the coinbase tx.
     pub blockchain_branch: Vec<TxMerkleNode>,
-    /// The index of the merged-mined block in the Merkle tree.
+    /// The index of the merged-mined header in the Merkle tree.
     pub blockchain_index: i32,
     /// Parent block header on which the PoW is done.
     pub parent_block_header: PureHeader,
 }
 
+impl_consensus_encoding!(
+    AuxPow,
+    coinbase_tx,
+    parent_hash,
+    coinbase_branch,
+    coinbase_index,
+    blockchain_branch,
+    blockchain_index,
+    parent_block_header
+);
+
 impl AuxPow {
-    /// Helper method to produce SHA256D(left + right) - same as PartialMerkleTree::parent_hash
+    /// Helper method to produce SHA256D(left + right) - same as [`crate::merkle_tree::PartialMerkleTree::parent_hash`]
     fn parent_hash(left: TxMerkleNode, right: TxMerkleNode) -> TxMerkleNode {
         let mut encoder = TxMerkleNode::engine();
         left.consensus_encode(&mut encoder).expect("engines don't error");
@@ -97,8 +155,8 @@ impl AuxPow {
         TxMerkleNode::from_engine(encoder)
     }
 
-    /// Verify merkle branch using the existing Bitcoin merkle hash function
-    fn check_merkle_branch(
+    /// Computes the merkle root from a hash and its merkle branch proof.
+    pub fn compute_merkle_root(
         hash: BlockHash,
         branch: &[TxMerkleNode],
         index: i32,
@@ -120,43 +178,72 @@ impl AuxPow {
         result_hash
     }
 
-    fn check_merge_mining_header(
+    /// Validates the merged mining header and merkle tree data in the coinbase script.
+    ///
+    /// The validation includes:
+    ///
+    /// 1. Merkle root: Ensures the blockchain merkle root is present
+    /// 2. Merged mining header: Ensures the merged mining header (0xfabe6d6d) is present
+    /// 3. Merged mining header uniqueness: Ensures only one merged mining header exists
+    /// 4. Merkle tree: Verifies that the merkle tree size matches the blockchain branch size
+    /// 5. Merkle tree index: Verifies the AuxPow header's index in the blockchain merkle tree
+    ///
+    /// # Arguments
+    ///
+    /// * `script` - The coinbase transaction input script containing the merge mining data
+    /// * `blockchain_merkle_root` - The merkle root of the headers of the merged-mined blockchains
+    /// * `chain_id` - Chain ID of the blockchain used for deterministic index calculation
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` if all validations pass, or an `AuxPowValidationError` describing the failure
+    ///
+    /// # Merge Mining Protocol
+    ///
+    /// The coinbase script embeds merge mining data in this format:
+    /// ```text
+    /// [...prefix] [merge_mining_header] [blockchain_merkle_root] [merkle_size] [merkle_nonce] [suffix...]
+    /// ```
+    /// Where:
+    /// - `merge_mining_header`: 4-byte magic header (0xfabe6d6d)
+    /// - `blockchain_merkle_root`: 32-byte root of the blockchain merkle tree
+    /// - `merkle_size`: 4-byte little-endian merkle tree size (2^height)
+    /// - `merkle_nonce`: 4-byte little-endian nonce to calculate deterministic indices of headers into merkle tree
+    fn check_merged_mining_coinbase_script(
         &self,
         script: &[u8],
         blockchain_merkle_root: &[u8; 32],
         chain_id: i32,
-    ) -> Result<(), AuxPowValidationError> {
+    ) -> Result<(), AuxPowCoinbaseScriptValidationError> {
         let root_pos = Self::find_bytes(script, blockchain_merkle_root)
-            .ok_or(AuxPowValidationError::MissingMerkleRoot)?;
+            .ok_or(AuxPowCoinbaseScriptValidationError::MissingMerkleRoot)?;
 
-        // Search for merged mining header
         match Self::find_bytes(script, &MERGED_MINING_HEADER) {
             Some(header_pos) => {
                 // Check for multiple headers
                 let search_start = header_pos + MERGED_MINING_HEADER.len();
                 if Self::find_bytes(&script[search_start..], &MERGED_MINING_HEADER).is_some() {
-                    return Err(AuxPowValidationError::MultipleHeaders);
+                    return Err(AuxPowCoinbaseScriptValidationError::MultipleHeaders);
                 }
                 // Check that header immediately precedes merkle root
                 if header_pos + MERGED_MINING_HEADER.len() != root_pos {
-                    return Err(AuxPowValidationError::HeaderNotAdjacent);
+                    return Err(AuxPowCoinbaseScriptValidationError::HeaderNotAdjacent);
                 }
             }
             None => {
                 // For backward compatibility: merkle root must start early in coinbase
                 // 8-12 bytes are enough to encode extraNonce and nBits
                 if root_pos > 20 {
-                    return Err(AuxPowValidationError::LegacyRootTooFar);
+                    return Err(AuxPowCoinbaseScriptValidationError::LegacyRootTooFar);
                 }
             }
         }
 
-        // Check merkle tree size and nonce
-        let pos_after_root = root_pos + MERGED_MINING_HEADER.len();
+        let pos_after_root = root_pos + blockchain_merkle_root.len();
         let remaining_script = &script[pos_after_root..];
         
         if remaining_script.len() < 8 {
-            return Err(AuxPowValidationError::MissingMerkleSizeAndNonce);
+            return Err(AuxPowCoinbaseScriptValidationError::MissingMerkleSizeAndNonce);
         }
 
         let size_bytes = [remaining_script[0], remaining_script[1], remaining_script[2], remaining_script[3]];
@@ -164,7 +251,7 @@ impl AuxPow {
         
         let merkle_height = self.blockchain_branch.len();
         if size != (1u32 << merkle_height) {
-            return Err(AuxPowValidationError::BadMerkleBranchSize);
+            return Err(AuxPowCoinbaseScriptValidationError::MerkleSizeMismatch);
         }
 
         let nonce_bytes = [remaining_script[4], remaining_script[5], remaining_script[6], remaining_script[7]];
@@ -172,7 +259,7 @@ impl AuxPow {
         
         let expected_index = Self::get_expected_index(nonce, chain_id, merkle_height);
         if self.blockchain_index != expected_index {
-            return Err(AuxPowValidationError::BadMerkleIndex);
+            return Err(AuxPowCoinbaseScriptValidationError::InvalidChainIndex);
         }
 
         Ok(())
@@ -189,17 +276,16 @@ impl AuxPow {
             .position(|window| window == needle)
     }
 
-    /// Calculate the expected index for the blockchain in the merkle tree.
-    /// Choose a pseudo-random slot in the chain merkle tree but have it be fixed 
-    /// for a size/nonce/chain combination.
+    /// Calculate the expected index of the AuxPow block header in the blockchain merkle tree.
     ///
-    /// This prevents the same work from being used twice for the same chain while 
-    /// reducing the chance that two chains clash for the same slot.
+    /// Given the merkle tree size, nonce, and chain ID, computes a pseudo-random slot in the blockchain
+    /// merkle tree. This prevents replay attacks in merge mining by assigning each blockchain a
+    /// deterministic position in the blockchain merkle tree.
     /// 
     /// Ref: <https://github.com/dogecoin/dogecoin/blob/51cbc1fd5d0d045dda2ad84f53572bbf524c6a8e/src/auxpow.cpp#L164>
-    fn get_expected_index(nonce: u32, chain_id: i32, merkle_height: usize) -> i32 {
-        // The original C++ implementation mentions that this computation can overflow
-        // and this is not an issue. In C++, unsigned integer overflows automatically wrap around.
+    pub fn get_expected_index(nonce: u32, chain_id: i32, merkle_height: usize) -> i32 {
+        // The original C++ implementation mentions that this computation can overflow but that
+        // this is not an issue. In C++, unsigned integer overflows automatically wrap around.
         // To replicate the wrapping behavior, we use `wrapping_mul` and `wrapping_add`.
 
         let mut rand = nonce;
@@ -210,57 +296,62 @@ impl AuxPow {
         (rand % (1u32 << merkle_height)) as i32
     }
 
+    /// Validates the AuxPow structure for merge mining.
+    ///
+    /// The validation ensures:
+    /// - The coinbase transaction is properly positioned in the parent block
+    /// - The merged mining header and blockchain merkle root are correctly embedded in the coinbase script
+    /// - The blockchain index matches the expected deterministic position
+    /// - Chain ID constraints are enforced to prevent cross-chain attacks
+    ///
+    /// Ref: <https://github.com/dogecoin/dogecoin/blob/51cbc1fd5d0d045dda2ad84f53572bbf524c6a8e/src/auxpow.cpp#L81>
+    ///
+    /// # Arguments
+    ///
+    /// * `aux_block_hash` - Hash of the AuxPow block being merged-mined
+    /// * `chain_id` - Chain ID of the auxiliary blockchain (e.g. 98 for Dogecoin)
+    /// * `strict_chain_id` - If true, enforces that parent and auxiliary chains have different chain IDs
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` if the AuxPoW is valid, or an `AuxPowValidationError` describing the validation failure
     pub fn check(&self, aux_block_hash: BlockHash, chain_id: i32, strict_chain_id: bool) -> Result<(), AuxPowValidationError> {
         if self.coinbase_index != 0 {
-            return Err(AuxPowValidationError::BadAuxPoW);
+            return Err(AuxPowValidationError::AuxPowNotFromCoinbase);
         }
 
         if strict_chain_id && get_chain_id(&self.parent_block_header) == chain_id {
-            return Err(AuxPowValidationError::BadAuxPoW);
+            return Err(AuxPowValidationError::ParentHasSameChainId);
         }
 
         if self.blockchain_branch.len() > 30 {
-            return Err(AuxPowValidationError::BadAuxPoW);
+            return Err(AuxPowValidationError::ChainMerkleBranchTooLong);
         }
 
-        // Check that the chain merkle root is in the coinbase
-        let blockchain_merkle_root = Self::check_merkle_branch(aux_block_hash, &self.blockchain_branch, self.blockchain_index);
+        let blockchain_merkle_root = Self::compute_merkle_root(aux_block_hash, &self.blockchain_branch, self.blockchain_index); // TODO: correct endianness
 
-        // Check coinbase merkle branch
         let coinbase_hash = self.coinbase_tx.compute_txid();
-        let coinbase_merkle_root = Self::check_merkle_branch(
+        let transactions_merkle_root = Self::compute_merkle_root(
             BlockHash::from_byte_array(coinbase_hash.to_byte_array()),
             &self.coinbase_branch,
             self.coinbase_index
         );
 
-        // Verify the coinbase merkle root matches the parent block's merkle root
-        if coinbase_merkle_root != self.parent_block_header.merkle_root {
-            return Err(AuxPowValidationError::BadAuxPoW);
+        if transactions_merkle_root != self.parent_block_header.merkle_root {
+            return Err(AuxPowValidationError::InvalidCoinbaseMerkleProof);
         }
 
         if self.coinbase_tx.input.is_empty() {
-            return Err(AuxPowValidationError::BadAuxPoW);
+            return Err(AuxPowValidationError::CoinbaseHasNoInputs);
         }
 
         let script = &self.coinbase_tx.input[0].script_sig;
 
-        self.check_merge_mining_header(script.as_bytes(), &blockchain_merkle_root.to_byte_array(), chain_id)?;
+        self.check_merged_mining_coinbase_script(script.as_bytes(), &blockchain_merkle_root.to_byte_array(), chain_id).map_err(AuxPowValidationError::InvalidAuxPowCoinbaseScript)?;
 
         Ok(())
     }
 }
-
-impl_consensus_encoding!(
-    AuxPow,
-    coinbase_tx,
-    parent_hash,
-    coinbase_branch,
-    coinbase_index,
-    blockchain_branch,
-    blockchain_index,
-    parent_block_header
-);
 
 
 /// Dogecoin block header.
@@ -272,7 +363,7 @@ impl_consensus_encoding!(
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "actual_serde"))]
 pub struct Header {
-    /// Block header without AuxPoW information.
+    /// Block header without AuxPow information.
     pub pure_header: PureHeader,
     /// AuxPoW structure, present if merged mining was used to mine this block.
     pub aux_pow: Option<AuxPow>,
@@ -291,25 +382,30 @@ impl DerefMut for Header {
     }
 }
 
+/// Checks if a block header indicates it was merged mined and contains AuxPow information.
 pub fn has_auxpow(header: &PureHeader) -> bool {
-    (header.version.to_consensus() & VERSION_AUXPOW) != 0 // TODO: maybe there is a better way than using to_consensus() everywhere
+    (header.version.to_consensus() & VERSION_AUXPOW) != 0
 }
 
+/// Extracts the chain ID from the block header's version field.
 pub fn get_chain_id(header: &PureHeader) -> i32 {
     header.version.to_consensus() >> 16
 }
 
+/// Determines if a block header represents a legacy (pre-AuxPoW) block.
 pub fn is_legacy(header: &PureHeader) -> bool {
     header.version == Version::ONE
-        // Dogecoin: We have a random v2 block with no AuxPoW, treat as legacy
+        // Random v2 block with no AuxPoW, treat as legacy
         || (header.version == Version::TWO && get_chain_id(header) == 0)
 }
 
+/// Extracts the base version number from a block header, removing AuxPoW and chain ID bits.
 pub fn base_version(header: &PureHeader) -> i32 {
     header.version.to_consensus() % VERSION_AUXPOW
 }
 
 impl Header {
+    /// Creates a Dogecoin header from a block header without AuxPoW data.
     pub fn new_from_pure_header(pure_header: PureHeader) -> Self {
         Self { pure_header, aux_pow: None }
     }
@@ -346,13 +442,13 @@ impl Encodable for Header {
 /// Dogecoin block.
 ///
 /// A collection of transactions with an attached proof of work.
-/// The AuxPoW is present if the block was mined using merge-mining.
+/// The AuxPoW data is present in `header` if the block was mined using merged-mining.
 ///
-/// See [Bitcoin Wiki: Block][wiki-block] and [Bitcoin Wiki: Merged_mining_specification][merge-mining]
+/// See [Bitcoin Wiki: Block][wiki-block] and [Bitcoin Wiki: Merged_mining_specification][merged-mining]
 /// for more information.
 ///
 /// [wiki-block]: https://en.bitcoin.it/wiki/Block
-/// [merge-mining]: https://en.bitcoin.it/wiki/Merged_mining_specification
+/// [merged-mining]: https://en.bitcoin.it/wiki/Merged_mining_specification
 ///
 /// ### Dogecoin Core References
 ///
