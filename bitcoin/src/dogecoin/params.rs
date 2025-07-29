@@ -130,13 +130,13 @@ impl Params {
     }
 
     /// Checks if Digishield difficulty adjustment is activated at the given block height.
-    pub const fn digishield_activated(&self, height: u32) -> bool {
+    pub const fn is_digishield_activated(&self, height: u32) -> bool {
          height >= self.digishield_activation_height
     }
 
-    /// Difficulty recalculation interval.
+    /// Returns the target timespan (in seconds) used for PoW retargeting at the given block height.
     pub const fn pow_target_timespan(&self, height: u32) -> i64 {
-        if !self.digishield_activated(height) {
+        if !self.is_digishield_activated(height) {
             FOUR_HOURS
         } else {
             match self.network {
@@ -147,7 +147,7 @@ impl Params {
         }
     }
 
-    /// Determines whether minimal difficulty may be used for blocks or not.
+    /// Determines whether minimal difficulty may be used for mining blocks.
     pub const fn allow_min_difficulty_blocks(&self, height: u32) -> bool {
         match self.network {
             Network::Dogecoin => false,
@@ -176,11 +176,20 @@ mod tests {
         let params = [Params::MAINNET, Params::TESTNET];
         for param in params {
             for &height in pre_digishield_heights.iter() {
-                assert!(!param.digishield_activated(height));
+                assert!(!param.is_digishield_activated(height));
             }
             for &height in digishield_heights.iter() {
-                assert!(param.digishield_activated(height));
+                assert!(param.is_digishield_activated(height));
             }
+        }
+
+        let pre_digishield_heights_regtest = [0, 5, 9];
+        let digishield_heights_regtest = [10, 11, 100];
+        for &height in pre_digishield_heights_regtest.iter() {
+            assert!(!Params::REGTEST.is_digishield_activated(height));
+        }
+        for &height in digishield_heights_regtest.iter() {
+            assert!(Params::REGTEST.is_digishield_activated(height));
         }
     }
 }

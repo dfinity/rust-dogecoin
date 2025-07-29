@@ -331,7 +331,7 @@ impl Target {
     ///
     /// In line with Dogecoin Core this function may return a target value of zero.
     pub fn min_transition_threshold_dogecoin(&self, params: impl AsRef<DogecoinParams>, height: u32) -> Self {
-        if params.as_ref().digishield_activated(height) {
+        if params.as_ref().is_digishield_activated(height) {
             Self(self.0 - (self.0 >> 2))
         } else {
             match height {
@@ -367,7 +367,7 @@ impl Target {
     /// this value is network specific - hence the `params` parameter.
     pub fn max_transition_threshold_dogecoin(&self, params: impl AsRef<DogecoinParams>, height: u32) -> Self {
         let max_attainable = params.as_ref().max_attainable_target;
-        if params.as_ref().digishield_activated(height) {
+        if params.as_ref().is_digishield_activated(height) {
             cmp::min(Self(self.0 + (self.0 >> 1)), max_attainable)
         } else {
             cmp::min(self.max_transition_threshold_unchecked(), max_attainable)
@@ -501,7 +501,7 @@ impl CompactTarget {
         // ref: <https://github.com/dogecoin/dogecoin/blob/51cbc1fd5d0d045dda2ad84f53572bbf524c6a8e/src/dogecoin.cpp>
         let retarget_timespan = params.pow_target_timespan(height); // Line 44
         let mut modulated_timespan = timespan; // Lines 45-46
-        if params.digishield_activated(height) { // Lines 50-56
+        if params.is_digishield_activated(height) { // Lines 50-56
             modulated_timespan = retarget_timespan + (modulated_timespan - retarget_timespan) / 8; // Line 53
             let (min_timespan, max_timespan) = (
                 retarget_timespan - (retarget_timespan >> 2),
