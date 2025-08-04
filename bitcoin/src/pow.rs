@@ -320,21 +320,25 @@ impl Target {
     /// Computes the minimum valid [`Target`] threshold allowed for a block in which a difficulty
     /// adjustment occurs for Dogecoin.
     ///
-    /// The difficulty can only decrease by a factor of 4, 8, or 16 max on each difficulty
-    /// adjustment period, depending on the height.
+    /// Pre-Digishield: The target can only decrease by a factor of 4, 8, or 16 max in each
+    /// difficulty adjustment period, depending on the height.
+    ///
+    /// Digishield: The target can decrease by 25 % max of the previous target in one adjustment.
     /// 
-    /// ref: <https://github.com/dogecoin/dogecoin/blob/2c513d0172e8bc86fe9a337693b26f2fdf68a013/src/dogecoin.cpp#L57-L66>
+    /// ref: <https://github.com/dogecoin/dogecoin/blob/2c513d0172e8bc86fe9a337693b26f2fdf68a013/src/dogecoin.cpp#L50-L66>
     ///
     /// # Returns
     ///
     /// In line with Dogecoin Core this function may return a target value of zero.
-    pub fn min_transition_threshold_dogecoin(&self, height: u32) -> Self {
-        if height > 10000 {
-            Self(self.0 >> 2)
-        } else if height > 5000 {
-            Self(self.0 >> 3)
+    pub fn min_transition_threshold_dogecoin(&self, params: impl AsRef<DogecoinParams>, height: u32) -> Self {
+        if params.as_ref().is_digishield_activated(height) {
+            Self(self.0 - (self.0 >> 2))
         } else {
-            Self(self.0 >> 4)
+            match height {
+                0..=5_000 => Self(self.0 >> 4),
+                5_001..=10_000 => Self(self.0 >> 3),
+                _ => Self(self.0 >> 2),
+            }
         }
     }
 
@@ -354,14 +358,20 @@ impl Target {
     /// Computes the maximum valid [`Target`] threshold allowed for a block in which a difficulty
     /// adjustment occurs for Dogecoin.
     ///
-    /// The difficulty can only decrease or increase by a factor of 4 max on each difficulty
+    /// Pre-Digishield: The target can only increase by a factor of 4 max in each difficulty
     /// adjustment period.
+    ///
+    /// Digishield: The target can increase by 50 % max of the previous target in one adjustment.
     ///
     /// We also check that the calculated target is not greater than the maximum allowed target,
     /// this value is network specific - hence the `params` parameter.
-    pub fn max_transition_threshold_dogecoin(&self, params: impl AsRef<DogecoinParams>) -> Self {
+    pub fn max_transition_threshold_dogecoin(&self, params: impl AsRef<DogecoinParams>, height: u32) -> Self {
         let max_attainable = params.as_ref().max_attainable_target;
-        cmp::min(self.max_transition_threshold_unchecked(), max_attainable)
+        if params.as_ref().is_digishield_activated(height) {
+            cmp::min(Self(self.0 + (self.0 >> 1)), max_attainable)
+        } else {
+            cmp::min(self.max_transition_threshold_unchecked(), max_attainable)
+        }
     }
 
     /// Computes the maximum valid [`Target`] threshold allowed for a block in which a difficulty
@@ -489,20 +499,29 @@ impl CompactTarget {
         }
         // Comments relate to the `pow.cpp` file from Core.
         // ref: <https://github.com/dogecoin/dogecoin/blob/51cbc1fd5d0d045dda2ad84f53572bbf524c6a8e/src/dogecoin.cpp>
-        let max_timespan = params.pow_target_timespan << 2;
-        let min_timespan = if height > 10000 { // Lines 57-66
-            params.pow_target_timespan >> 2
-        } else if height > 5000 {
-            params.pow_target_timespan >> 3
-        } else {
-            params.pow_target_timespan >> 4
-        };
-        let actual_timespan = timespan.clamp(min_timespan, max_timespan); // Lines 69-72 nModulatedTimespan
+        let retarget_timespan = params.pow_target_timespan(height); // Line 44
+        let mut modulated_timespan = timespan; // Lines 45-46
+        if params.is_digishield_activated(height) { // Lines 50-56
+            modulated_timespan = retarget_timespan + (modulated_timespan - retarget_timespan) / 8; // Line 53
+            let (min_timespan, max_timespan) = (
+                retarget_timespan - (retarget_timespan >> 2),
+                retarget_timespan + (retarget_timespan >> 1),
+            );
+            modulated_timespan = modulated_timespan.clamp(min_timespan, max_timespan); // Lines 69-72
+        } else { // Lines 57-66
+            let max_timespan = retarget_timespan << 2;
+            let min_timespan = match height {
+                0..=5_000 => retarget_timespan >> 4,
+                5_001..=10_000 => retarget_timespan >> 3,
+                _ => retarget_timespan >> 2,
+            };
+            modulated_timespan = modulated_timespan.clamp(min_timespan, max_timespan); // Lines 69-72
+        }
         let prev_target: Target = last.into();
-        let maximum_retarget = prev_target.max_transition_threshold_dogecoin(params); // bnPowLimit
+        let maximum_retarget = prev_target.max_transition_threshold_dogecoin(params, height); // bnPowLimit
         let retarget = prev_target.0; // bnNew
-        let retarget = retarget.mul((actual_timespan as u64).into()); // Line 80
-        let retarget = retarget.div((params.pow_target_timespan as u64).into()); // Line 81
+        let retarget = retarget.mul((modulated_timespan as u64).into()); // Line 80
+        let retarget = retarget.div((retarget_timespan as u64).into()); // Line 81
         let retarget = Target(retarget);
         if retarget.ge(&maximum_retarget) {
             return maximum_retarget.to_compact_lossy();
