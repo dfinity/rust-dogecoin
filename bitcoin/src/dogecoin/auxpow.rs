@@ -6,12 +6,13 @@
 //! blocks used in Dogecoin's merged mining.
 
 use core::fmt;
+
 use hashes::Hash;
-use crate::{BlockHash, Transaction, TxMerkleNode};
+
 use crate::consensus::Encodable;
 use crate::dogecoin::get_chain_id;
 use crate::internal_macros::impl_consensus_encoding;
-
+use crate::{BlockHash, Transaction, TxMerkleNode};
 
 /// AuxPow version bit, see <https://github.com/dogecoin/dogecoin/blob/d7cc7f8bbb5f790942d0ed0617f62447e7675233/src/primitives/pureheader.h#L23>
 pub const VERSION_AUXPOW: i32 = 1 << 8;
@@ -32,7 +33,7 @@ pub enum AuxPowValidationError {
     /// Aux POW coinbase transaction has no inputs
     CoinbaseHasNoInputs,
     /// Invalid script in coinbase transaction
-    InvalidAuxPowCoinbaseScript(AuxPowCoinbaseScriptValidationError)
+    InvalidAuxPowCoinbaseScript(AuxPowCoinbaseScriptValidationError),
 }
 
 impl fmt::Display for AuxPowValidationError {
@@ -48,8 +49,7 @@ impl fmt::Display for AuxPowValidationError {
                 write!(f, "Aux POW coinbase transaction has invalid merkle proof"),
             AuxPowValidationError::CoinbaseHasNoInputs =>
                 write!(f, "Aux POW coinbase transaction has no inputs"),
-            AuxPowValidationError::InvalidAuxPowCoinbaseScript(err) =>
-                write!(f, "{}", err),
+            AuxPowValidationError::InvalidAuxPowCoinbaseScript(err) => write!(f, "{}", err),
         }
     }
 }
@@ -70,7 +70,7 @@ pub enum AuxPowCoinbaseScriptValidationError {
     /// Blockchain merkle branch size does not match merkle size in the coinbase transaction
     MerkleSizeMismatch,
     /// Blockchain index does not match expected value derived from nonce and chain ID
-    InvalidChainIndex
+    InvalidChainIndex,
 }
 
 impl fmt::Display for AuxPowCoinbaseScriptValidationError {
@@ -235,7 +235,8 @@ impl AuxPow {
             return Err(AuxPowCoinbaseScriptValidationError::MissingMerkleSizeAndNonce);
         }
 
-        let size_bytes = [remaining_script[0], remaining_script[1], remaining_script[2], remaining_script[3]];
+        let size_bytes =
+            [remaining_script[0], remaining_script[1], remaining_script[2], remaining_script[3]];
         let size = u32::from_le_bytes(size_bytes);
 
         let merkle_height = self.blockchain_branch.len();
@@ -243,7 +244,8 @@ impl AuxPow {
             return Err(AuxPowCoinbaseScriptValidationError::MerkleSizeMismatch);
         }
 
-        let nonce_bytes = [remaining_script[4], remaining_script[5], remaining_script[6], remaining_script[7]];
+        let nonce_bytes =
+            [remaining_script[4], remaining_script[5], remaining_script[6], remaining_script[7]];
         let nonce = u32::from_le_bytes(nonce_bytes);
 
         let expected_index = Self::get_expected_index(nonce, chain_id, merkle_height);
@@ -260,9 +262,7 @@ impl AuxPow {
         if needle.is_empty() {
             return Some(0);
         }
-        haystack
-            .windows(needle.len())
-            .position(|window| window == needle)
+        haystack.windows(needle.len()).position(|window| window == needle)
     }
 
     /// Calculate the expected index of the AuxPow block header in the blockchain merkle tree.
@@ -304,7 +304,12 @@ impl AuxPow {
     /// # Returns
     ///
     /// `Ok(())` if the AuxPoW is valid, or an `AuxPowValidationError` describing the validation failure
-    pub fn check(&self, aux_block_hash: BlockHash, chain_id: i32, strict_chain_id: bool) -> Result<(), AuxPowValidationError> {
+    pub fn check(
+        &self,
+        aux_block_hash: BlockHash,
+        chain_id: i32,
+        strict_chain_id: bool,
+    ) -> Result<(), AuxPowValidationError> {
         if self.coinbase_index != 0 {
             return Err(AuxPowValidationError::AuxPowNotFromCoinbase);
         }
@@ -317,13 +322,17 @@ impl AuxPow {
             return Err(AuxPowValidationError::ChainMerkleBranchTooLong);
         }
 
-        let blockchain_merkle_root = Self::compute_merkle_root(aux_block_hash, &self.blockchain_branch, self.blockchain_index); // TODO: correct endianness
+        let blockchain_merkle_root = Self::compute_merkle_root(
+            aux_block_hash,
+            &self.blockchain_branch,
+            self.blockchain_index,
+        ); // TODO: correct endianness
 
         let coinbase_hash = self.coinbase_tx.compute_txid();
         let transactions_merkle_root = Self::compute_merkle_root(
             BlockHash::from_byte_array(coinbase_hash.to_byte_array()),
             &self.coinbase_branch,
-            self.coinbase_index
+            self.coinbase_index,
         );
 
         if transactions_merkle_root != self.parent_block_header.merkle_root {
@@ -336,7 +345,12 @@ impl AuxPow {
 
         let script = &self.coinbase_tx.input[0].script_sig;
 
-        self.check_merged_mining_coinbase_script(script.as_bytes(), &blockchain_merkle_root.to_byte_array(), chain_id).map_err(AuxPowValidationError::InvalidAuxPowCoinbaseScript)?;
+        self.check_merged_mining_coinbase_script(
+            script.as_bytes(),
+            &blockchain_merkle_root.to_byte_array(),
+            chain_id,
+        )
+        .map_err(AuxPowValidationError::InvalidAuxPowCoinbaseScript)?;
 
         Ok(())
     }
@@ -344,10 +358,11 @@ impl AuxPow {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::{TxIn, TxOut, ScriptBuf, Witness, CompactTarget};
     use hashes::Hash;
+
+    use super::*;
     use crate::block::{Header as PureHeader, Version};
+    use crate::{CompactTarget, ScriptBuf, TxIn, TxOut, Witness};
 
     const PARENT_BLOCK_CHAIN_ID: i32 = 42;
     const AUXPOW_BLOCK_CHAIN_ID: i32 = 98;
@@ -356,10 +371,8 @@ mod tests {
     const MERKLE_HEIGHT: usize = 30;
 
     /// Helper to create a dummy blockchain branch
-    fn build_blockchain_merkle_branch(merkle_height: usize) -> Vec<TxMerkleNode>{
-        (0..merkle_height)
-            .map(|i| TxMerkleNode::from_byte_array([i as u8; 32]))
-            .collect()
+    fn build_blockchain_merkle_branch(merkle_height: usize) -> Vec<TxMerkleNode> {
+        (0..merkle_height).map(|i| TxMerkleNode::from_byte_array([i as u8; 32])).collect()
     }
 
     /// Helper to create a minimal coinbase transaction with the given script
@@ -380,10 +393,12 @@ mod tests {
         }
     }
 
-    fn build_auxpow_coinbase_script(with_header: bool,
-                                    blockchain_merkle_root: &[u8; 32],
-                                    merkle_height: usize,
-                                    nonce: u32) -> ScriptBuf {
+    fn build_auxpow_coinbase_script(
+        with_header: bool,
+        blockchain_merkle_root: &[u8; 32],
+        merkle_height: usize,
+        nonce: u32,
+    ) -> ScriptBuf {
         let mut data = Vec::new();
 
         if with_header {
@@ -409,10 +424,8 @@ mod tests {
         merkle_height: usize,
         nonce: u32,
     ) -> Transaction {
-        let script = build_auxpow_coinbase_script(with_header,
-                                                  blockchain_merkle_root,
-                                                  merkle_height,
-                                                  nonce);
+        let script =
+            build_auxpow_coinbase_script(with_header, blockchain_merkle_root, merkle_height, nonce);
 
         coinbase_from_script(script)
     }
@@ -445,14 +458,26 @@ mod tests {
     }
 
     /// Helper to create a valid AuxPow
-    fn build_auxpow(aux_block_hash: BlockHash, chain_id: i32, merkle_height: usize, nonce: u32, with_header: bool) -> AuxPow {
+    fn build_auxpow(
+        aux_block_hash: BlockHash,
+        chain_id: i32,
+        merkle_height: usize,
+        nonce: u32,
+        with_header: bool,
+    ) -> AuxPow {
         let expected_index = AuxPow::get_expected_index(nonce, chain_id, merkle_height);
 
         let blockchain_branch = build_blockchain_merkle_branch(merkle_height);
 
-        let blockchain_merkle_root = AuxPow::compute_merkle_root(aux_block_hash, &blockchain_branch, expected_index);
+        let blockchain_merkle_root =
+            AuxPow::compute_merkle_root(aux_block_hash, &blockchain_branch, expected_index);
 
-        let coinbase_tx = build_auxpow_coinbase(with_header, &blockchain_merkle_root.to_byte_array(), merkle_height, nonce);
+        let coinbase_tx = build_auxpow_coinbase(
+            with_header,
+            &blockchain_merkle_root.to_byte_array(),
+            merkle_height,
+            nonce,
+        );
 
         assemble_auxpow(coinbase_tx, expected_index, blockchain_branch)
     }
@@ -507,7 +532,8 @@ mod tests {
         let mut auxpow = build_auxpow(aux_block_hash, chain_id, merkle_height, nonce, true);
 
         // Set parent block to have same chain ID
-        auxpow.parent_block_header.version = Version::from_consensus(BASE_VERSION | (AUXPOW_BLOCK_CHAIN_ID << 16));
+        auxpow.parent_block_header.version =
+            Version::from_consensus(BASE_VERSION | (AUXPOW_BLOCK_CHAIN_ID << 16));
 
         assert_eq!(
             auxpow.check(aux_block_hash, chain_id, true),
@@ -560,8 +586,14 @@ mod tests {
         let expected_index = AuxPow::get_expected_index(nonce, chain_id, merkle_height);
 
         let blockchain_branch = build_blockchain_merkle_branch(merkle_height);
-        let blockchain_merkle_root = AuxPow::compute_merkle_root(aux_block_hash, &blockchain_branch, expected_index);
-        let mut coinbase_tx = build_auxpow_coinbase(true, &blockchain_merkle_root.to_byte_array(), merkle_height, nonce);
+        let blockchain_merkle_root =
+            AuxPow::compute_merkle_root(aux_block_hash, &blockchain_branch, expected_index);
+        let mut coinbase_tx = build_auxpow_coinbase(
+            true,
+            &blockchain_merkle_root.to_byte_array(),
+            merkle_height,
+            nonce,
+        );
 
         coinbase_tx.input.clear(); // Remove inputs
 
@@ -583,7 +615,10 @@ mod tests {
 
         let auxpow = build_auxpow(aux_block_hash, chain_id, merkle_height, nonce, true);
 
-        assert_eq!(auxpow.check(modified_hash, chain_id, true), Err(AuxPowCoinbaseScriptValidationError::MissingMerkleRoot.into()));
+        assert_eq!(
+            auxpow.check(modified_hash, chain_id, true),
+            Err(AuxPowCoinbaseScriptValidationError::MissingMerkleRoot.into())
+        );
     }
 
     #[test]
@@ -596,7 +631,10 @@ mod tests {
 
         let auxpow = build_auxpow(aux_block_hash, chain_id, merkle_height, nonce, true);
 
-        assert_eq!(auxpow.check(aux_block_hash, wrong_chain_id, true), Err(AuxPowCoinbaseScriptValidationError::InvalidChainIndex.into()));
+        assert_eq!(
+            auxpow.check(aux_block_hash, wrong_chain_id, true),
+            Err(AuxPowCoinbaseScriptValidationError::InvalidChainIndex.into())
+        );
     }
 
     #[test]
@@ -610,7 +648,8 @@ mod tests {
 
         let blockchain_branch = build_blockchain_merkle_branch(merkle_height);
         let wrong_blockchain_merkle_root = [0; 32];
-        let coinbase_tx = build_auxpow_coinbase(true, &wrong_blockchain_merkle_root, merkle_height, nonce);
+        let coinbase_tx =
+            build_auxpow_coinbase(true, &wrong_blockchain_merkle_root, merkle_height, nonce);
 
         let auxpow = assemble_auxpow(coinbase_tx, expected_index, blockchain_branch);
 
@@ -629,67 +668,124 @@ mod tests {
 
         let expected_index = AuxPow::get_expected_index(nonce, chain_id, merkle_height);
         let blockchain_branch = build_blockchain_merkle_branch(merkle_height);
-        let blockchain_merkle_root = AuxPow::compute_merkle_root(aux_block_hash, &blockchain_branch, expected_index).to_byte_array();
+        let blockchain_merkle_root =
+            AuxPow::compute_merkle_root(aux_block_hash, &blockchain_branch, expected_index)
+                .to_byte_array();
         let wrong_blockchain_merkle_root = [0; 32];
 
         // Two blockchain merkle roots with no headers (legacy)
         // Correct blockchain merkle root first
-        let script_begin = build_auxpow_coinbase_script(false, &blockchain_merkle_root, merkle_height, nonce);
-        let script_end = build_auxpow_coinbase_script(false, &wrong_blockchain_merkle_root, merkle_height, nonce);
-        let script = ScriptBuf::from_bytes([script_begin.into_bytes(), script_end.into_bytes()].concat());
+        let script_begin =
+            build_auxpow_coinbase_script(false, &blockchain_merkle_root, merkle_height, nonce);
+        let script_end = build_auxpow_coinbase_script(
+            false,
+            &wrong_blockchain_merkle_root,
+            merkle_height,
+            nonce,
+        );
+        let script =
+            ScriptBuf::from_bytes([script_begin.into_bytes(), script_end.into_bytes()].concat());
         let coinbase_tx = coinbase_from_script(script);
         let auxpow = assemble_auxpow(coinbase_tx, expected_index, blockchain_branch.clone());
         assert!(auxpow.check(aux_block_hash, chain_id, true).is_ok());
 
         // Wrong blockchain merkle root first
-        let script_begin = build_auxpow_coinbase_script(false, &wrong_blockchain_merkle_root, merkle_height, nonce);
-        let script_end = build_auxpow_coinbase_script(false, &blockchain_merkle_root, merkle_height, nonce);
-        let script = ScriptBuf::from_bytes([script_begin.into_bytes(), script_end.into_bytes()].concat());
+        let script_begin = build_auxpow_coinbase_script(
+            false,
+            &wrong_blockchain_merkle_root,
+            merkle_height,
+            nonce,
+        );
+        let script_end =
+            build_auxpow_coinbase_script(false, &blockchain_merkle_root, merkle_height, nonce);
+        let script =
+            ScriptBuf::from_bytes([script_begin.into_bytes(), script_end.into_bytes()].concat());
         let coinbase_tx = coinbase_from_script(script);
         let auxpow = assemble_auxpow(coinbase_tx, expected_index, blockchain_branch.clone());
-        assert_eq!(auxpow.check(aux_block_hash, chain_id, true), Err(AuxPowCoinbaseScriptValidationError::LegacyRootTooFar.into()));
+        assert_eq!(
+            auxpow.check(aux_block_hash, chain_id, true),
+            Err(AuxPowCoinbaseScriptValidationError::LegacyRootTooFar.into())
+        );
 
         // Merged mining header present with wrong blockchain merkle root following it
-        let script_begin = build_auxpow_coinbase_script(false, &blockchain_merkle_root, merkle_height, nonce);
-        let script_end = build_auxpow_coinbase_script(true, &wrong_blockchain_merkle_root, merkle_height, nonce);
-        let script = ScriptBuf::from_bytes([script_begin.into_bytes(), script_end.into_bytes()].concat());
+        let script_begin =
+            build_auxpow_coinbase_script(false, &blockchain_merkle_root, merkle_height, nonce);
+        let script_end =
+            build_auxpow_coinbase_script(true, &wrong_blockchain_merkle_root, merkle_height, nonce);
+        let script =
+            ScriptBuf::from_bytes([script_begin.into_bytes(), script_end.into_bytes()].concat());
         let coinbase_tx = coinbase_from_script(script);
         let auxpow = assemble_auxpow(coinbase_tx, expected_index, blockchain_branch.clone());
-        assert_eq!(auxpow.check(aux_block_hash, chain_id, true), Err(AuxPowCoinbaseScriptValidationError::HeaderNotAdjacent.into()));
+        assert_eq!(
+            auxpow.check(aux_block_hash, chain_id, true),
+            Err(AuxPowCoinbaseScriptValidationError::HeaderNotAdjacent.into())
+        );
 
-        let script_begin = build_auxpow_coinbase_script(true, &wrong_blockchain_merkle_root, merkle_height, nonce);
-        let script_end = build_auxpow_coinbase_script(false, &blockchain_merkle_root, merkle_height, nonce);
-        let script = ScriptBuf::from_bytes([script_begin.into_bytes(), script_end.into_bytes()].concat());
+        let script_begin =
+            build_auxpow_coinbase_script(true, &wrong_blockchain_merkle_root, merkle_height, nonce);
+        let script_end =
+            build_auxpow_coinbase_script(false, &blockchain_merkle_root, merkle_height, nonce);
+        let script =
+            ScriptBuf::from_bytes([script_begin.into_bytes(), script_end.into_bytes()].concat());
         let coinbase_tx = coinbase_from_script(script);
         let auxpow = assemble_auxpow(coinbase_tx, expected_index, blockchain_branch.clone());
-        assert_eq!(auxpow.check(aux_block_hash, chain_id, true), Err(AuxPowCoinbaseScriptValidationError::HeaderNotAdjacent.into()));
+        assert_eq!(
+            auxpow.check(aux_block_hash, chain_id, true),
+            Err(AuxPowCoinbaseScriptValidationError::HeaderNotAdjacent.into())
+        );
 
         // Multiple headers in coinbase is rejected
-        let script_begin = build_auxpow_coinbase_script(true, &wrong_blockchain_merkle_root, merkle_height, nonce);
-        let script_end = build_auxpow_coinbase_script(true, &blockchain_merkle_root, merkle_height, nonce);
-        let script = ScriptBuf::from_bytes([script_begin.into_bytes(), script_end.into_bytes()].concat());
+        let script_begin =
+            build_auxpow_coinbase_script(true, &wrong_blockchain_merkle_root, merkle_height, nonce);
+        let script_end =
+            build_auxpow_coinbase_script(true, &blockchain_merkle_root, merkle_height, nonce);
+        let script =
+            ScriptBuf::from_bytes([script_begin.into_bytes(), script_end.into_bytes()].concat());
         let coinbase_tx = coinbase_from_script(script);
         let auxpow = assemble_auxpow(coinbase_tx, expected_index, blockchain_branch.clone());
-        assert_eq!(auxpow.check(aux_block_hash, chain_id, true), Err(AuxPowCoinbaseScriptValidationError::MultipleHeaders.into()));
+        assert_eq!(
+            auxpow.check(aux_block_hash, chain_id, true),
+            Err(AuxPowCoinbaseScriptValidationError::MultipleHeaders.into())
+        );
 
-        let script_begin = build_auxpow_coinbase_script(true, &blockchain_merkle_root, merkle_height, nonce);
-        let script_end = build_auxpow_coinbase_script(true, &wrong_blockchain_merkle_root, merkle_height, nonce);
-        let script = ScriptBuf::from_bytes([script_begin.into_bytes(), script_end.into_bytes()].concat());
+        let script_begin =
+            build_auxpow_coinbase_script(true, &blockchain_merkle_root, merkle_height, nonce);
+        let script_end =
+            build_auxpow_coinbase_script(true, &wrong_blockchain_merkle_root, merkle_height, nonce);
+        let script =
+            ScriptBuf::from_bytes([script_begin.into_bytes(), script_end.into_bytes()].concat());
         let coinbase_tx = coinbase_from_script(script);
         let auxpow = assemble_auxpow(coinbase_tx, expected_index, blockchain_branch.clone());
-        assert_eq!(auxpow.check(aux_block_hash, chain_id, true), Err(AuxPowCoinbaseScriptValidationError::MultipleHeaders.into()));
+        assert_eq!(
+            auxpow.check(aux_block_hash, chain_id, true),
+            Err(AuxPowCoinbaseScriptValidationError::MultipleHeaders.into())
+        );
 
         // Correct blockchain merkle root after merged mining header is accepted
-        let script_begin = build_auxpow_coinbase_script(true, &blockchain_merkle_root, merkle_height, nonce);
-        let script_end = build_auxpow_coinbase_script(false, &wrong_blockchain_merkle_root, merkle_height, nonce);
-        let script = ScriptBuf::from_bytes([script_begin.into_bytes(), script_end.into_bytes()].concat());
+        let script_begin =
+            build_auxpow_coinbase_script(true, &blockchain_merkle_root, merkle_height, nonce);
+        let script_end = build_auxpow_coinbase_script(
+            false,
+            &wrong_blockchain_merkle_root,
+            merkle_height,
+            nonce,
+        );
+        let script =
+            ScriptBuf::from_bytes([script_begin.into_bytes(), script_end.into_bytes()].concat());
         let coinbase_tx = coinbase_from_script(script);
         let auxpow = assemble_auxpow(coinbase_tx, expected_index, blockchain_branch.clone());
         assert!(auxpow.check(aux_block_hash, chain_id, true).is_ok());
 
-        let script_begin = build_auxpow_coinbase_script(false, &wrong_blockchain_merkle_root, merkle_height, nonce);
-        let script_end = build_auxpow_coinbase_script(true, &blockchain_merkle_root, merkle_height, nonce);
-        let script = ScriptBuf::from_bytes([script_begin.into_bytes(), script_end.into_bytes()].concat());
+        let script_begin = build_auxpow_coinbase_script(
+            false,
+            &wrong_blockchain_merkle_root,
+            merkle_height,
+            nonce,
+        );
+        let script_end =
+            build_auxpow_coinbase_script(true, &blockchain_merkle_root, merkle_height, nonce);
+        let script =
+            ScriptBuf::from_bytes([script_begin.into_bytes(), script_end.into_bytes()].concat());
         let coinbase_tx = coinbase_from_script(script);
         let auxpow = assemble_auxpow(coinbase_tx, expected_index, blockchain_branch.clone());
         assert!(auxpow.check(aux_block_hash, chain_id, true).is_ok());
@@ -704,7 +800,8 @@ mod tests {
 
         let expected_index = AuxPow::get_expected_index(nonce, chain_id, merkle_height);
         let blockchain_branch = build_blockchain_merkle_branch(merkle_height);
-        let blockchain_merkle_root = AuxPow::compute_merkle_root(aux_block_hash, &blockchain_branch, expected_index);
+        let blockchain_merkle_root =
+            AuxPow::compute_merkle_root(aux_block_hash, &blockchain_branch, expected_index);
 
         let mut script_data = vec![0x01, 0x02];
         script_data.extend_from_slice(&MERGED_MINING_HEADER);
@@ -734,7 +831,8 @@ mod tests {
         // Create legacy format with merkle root too far from start
         let expected_index = AuxPow::get_expected_index(nonce, chain_id, merkle_height);
         let blockchain_branch = build_blockchain_merkle_branch(merkle_height);
-        let blockchain_merkle_root = AuxPow::compute_merkle_root(aux_block_hash, &blockchain_branch, expected_index);
+        let blockchain_merkle_root =
+            AuxPow::compute_merkle_root(aux_block_hash, &blockchain_branch, expected_index);
 
         let mut script_data = vec![0; 25]; // 25 bytes prefix (>20, too far)
         script_data.extend_from_slice(&blockchain_merkle_root.to_byte_array());
@@ -761,9 +859,15 @@ mod tests {
 
         let expected_index = AuxPow::get_expected_index(nonce, chain_id, merkle_height);
         let blockchain_branch = build_blockchain_merkle_branch(merkle_height);
-        let blockchain_merkle_root = AuxPow::compute_merkle_root(aux_block_hash, &blockchain_branch, expected_index);
+        let blockchain_merkle_root =
+            AuxPow::compute_merkle_root(aux_block_hash, &blockchain_branch, expected_index);
 
-        let script = build_auxpow_coinbase_script(true, &blockchain_merkle_root.to_byte_array(), merkle_height, nonce);
+        let script = build_auxpow_coinbase_script(
+            true,
+            &blockchain_merkle_root.to_byte_array(),
+            merkle_height,
+            nonce,
+        );
         let mut script_bytes = script.into_bytes();
         script_bytes.truncate(script_bytes.len() - 8); // Remove last 8 bytes (size + nonce)
         let coinbase_tx = coinbase_from_script(ScriptBuf::from_bytes(script_bytes));
@@ -785,9 +889,15 @@ mod tests {
 
         let expected_index = AuxPow::get_expected_index(nonce, chain_id, merkle_height);
         let blockchain_branch = build_blockchain_merkle_branch(merkle_height);
-        let blockchain_merkle_root = AuxPow::compute_merkle_root(aux_block_hash, &blockchain_branch, expected_index);
+        let blockchain_merkle_root =
+            AuxPow::compute_merkle_root(aux_block_hash, &blockchain_branch, expected_index);
 
-        let script = build_auxpow_coinbase_script(true, &blockchain_merkle_root.to_byte_array(), merkle_height - 1, nonce);
+        let script = build_auxpow_coinbase_script(
+            true,
+            &blockchain_merkle_root.to_byte_array(),
+            merkle_height - 1,
+            nonce,
+        );
         let coinbase_tx = coinbase_from_script(script);
 
         let auxpow = assemble_auxpow(coinbase_tx, expected_index, blockchain_branch);
@@ -807,9 +917,15 @@ mod tests {
 
         let expected_index = AuxPow::get_expected_index(nonce, chain_id, merkle_height);
         let blockchain_branch = build_blockchain_merkle_branch(merkle_height);
-        let blockchain_merkle_root = AuxPow::compute_merkle_root(aux_block_hash, &blockchain_branch, expected_index);
+        let blockchain_merkle_root =
+            AuxPow::compute_merkle_root(aux_block_hash, &blockchain_branch, expected_index);
 
-        let script = build_auxpow_coinbase_script(true, &blockchain_merkle_root.to_byte_array(), merkle_height, nonce + 3);
+        let script = build_auxpow_coinbase_script(
+            true,
+            &blockchain_merkle_root.to_byte_array(),
+            merkle_height,
+            nonce + 3,
+        );
         let coinbase_tx = coinbase_from_script(script);
 
         let auxpow = assemble_auxpow(coinbase_tx, expected_index, blockchain_branch);
@@ -830,9 +946,15 @@ mod tests {
         let expected_index = AuxPow::get_expected_index(nonce, chain_id, merkle_height);
         let blockchain_branch = build_blockchain_merkle_branch(merkle_height);
 
-        let blockchain_merkle_root = AuxPow::compute_merkle_root(aux_block_hash, &blockchain_branch, expected_index + 1);
+        let blockchain_merkle_root =
+            AuxPow::compute_merkle_root(aux_block_hash, &blockchain_branch, expected_index + 1);
 
-        let coinbase_tx = build_auxpow_coinbase(true, &blockchain_merkle_root.to_byte_array(), merkle_height, nonce);
+        let coinbase_tx = build_auxpow_coinbase(
+            true,
+            &blockchain_merkle_root.to_byte_array(),
+            merkle_height,
+            nonce,
+        );
 
         let auxpow = assemble_auxpow(coinbase_tx, expected_index, blockchain_branch);
 
