@@ -94,9 +94,9 @@ impl fmt::Display for AuxPowCoinbaseScriptValidationError {
     }
 }
 
-impl Into<AuxPowValidationError> for AuxPowCoinbaseScriptValidationError {
-    fn into(self) -> AuxPowValidationError {
-        AuxPowValidationError::InvalidAuxPowCoinbaseScript(self)
+impl From<AuxPowCoinbaseScriptValidationError> for AuxPowValidationError {
+    fn from(err: AuxPowCoinbaseScriptValidationError) -> Self {
+        AuxPowValidationError::InvalidAuxPowCoinbaseScript(err)
     }
 }
 
