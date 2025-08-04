@@ -12,6 +12,7 @@ use hashes::Hash;
 use crate::consensus::Encodable;
 use crate::dogecoin::get_chain_id;
 use crate::internal_macros::impl_consensus_encoding;
+use crate::prelude::*;
 use crate::{BlockHash, Transaction, TxMerkleNode};
 
 /// AuxPow version bit, see <https://github.com/dogecoin/dogecoin/blob/d7cc7f8bbb5f790942d0ed0617f62447e7675233/src/primitives/pureheader.h#L23>

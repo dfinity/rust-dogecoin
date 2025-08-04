@@ -21,7 +21,7 @@ use crate::p2p::Magic;
 use crate::prelude::*;
 use crate::{io, BlockHash, Transaction};
 use core::fmt;
-use std::ops::{Deref, DerefMut};
+use core::ops::{Deref, DerefMut};
 use crate::dogecoin::auxpow::{AuxPow, VERSION_AUXPOW};
 
 /// Dogecoin block header.
