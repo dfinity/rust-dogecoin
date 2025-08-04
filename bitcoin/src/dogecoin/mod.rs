@@ -39,6 +39,13 @@ pub struct Header {
     pub aux_pow: Option<AuxPow>,
 }
 
+impl Header {
+    /// Creates a Dogecoin header from a block header without AuxPoW data.
+    pub fn new_from_pure_header(pure_header: PureHeader) -> Self {
+        Self { pure_header, aux_pow: None }
+    }
+}
+
 impl Deref for Header {
     type Target = PureHeader;
     fn deref(&self) -> &Self::Target {
@@ -72,13 +79,6 @@ pub fn is_legacy(header: &PureHeader) -> bool {
 /// Extracts the base version number from a block header, removing AuxPoW and chain ID bits.
 pub fn base_version(header: &PureHeader) -> i32 {
     header.version.to_consensus() % VERSION_AUXPOW
-}
-
-impl Header {
-    /// Creates a Dogecoin header from a block header without AuxPoW data.
-    pub fn new_from_pure_header(pure_header: PureHeader) -> Self {
-        Self { pure_header, aux_pow: None }
-    }
 }
 
 impl Decodable for Header {
