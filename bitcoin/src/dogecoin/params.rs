@@ -9,6 +9,11 @@
 use crate::dogecoin::Network;
 use crate::Target;
 
+
+const ONE_SECOND: i64 = 1;
+const ONE_MINUTE: i64 = 60;
+const FOUR_HOURS: i64 = 4 * 60 * 60;
+
 /// Parameters that influence chain consensus.
 #[non_exhaustive]
 #[derive(Debug, Clone)]
@@ -44,12 +49,10 @@ pub struct Params {
     pub max_attainable_target: Target,
     /// Expected amount of time to mine one block.
     pub pow_target_spacing: i64,
-    /// Difficulty recalculation interval.
-    pub pow_target_timespan: i64,
-    /// Determines whether minimal difficulty may be used for blocks or not.
-    pub allow_min_difficulty_blocks: bool,
     /// Determines whether retargeting is disabled for this network or not.
     pub no_pow_retargeting: bool,
+    /// Height after which the Digishield difficulty adjustment algorithm is used.
+    pub digishield_activation_height: u32,
     /// Height after which mining with AuxPoW is allowed.
     pub auxpow_height: u32,
     /// TODO: add doc
@@ -75,6 +78,7 @@ impl Params {
     pub const DOGECOIN: Params = Params::MAINNET;
 
     /// The mainnet parameters.
+    /// Ref: <https://github.com/dogecoin/dogecoin/blob/2c513d0172e8bc86fe9a337693b26f2fdf68a013/src/chainparams.cpp#L75>
     pub const MAINNET: Params = Params {
             network: Network::Dogecoin,
             bip16_time: 1333238400,                 // Apr 1 2012
@@ -85,16 +89,16 @@ impl Params {
             miner_confirmation_window: 10080, // 60 * 24 * 7 = 10,080 blocks, or one week
             pow_limit: Target::MAX_ATTAINABLE_MAINNET_DOGE,
             max_attainable_target: Target::MAX_ATTAINABLE_MAINNET_DOGE,
-            pow_target_spacing: 60,           // 1 minute
-            pow_target_timespan: 4 * 60 * 60, // pre-digishield: 4 hours
-            allow_min_difficulty_blocks: false,
+            pow_target_spacing: ONE_MINUTE,           // 1 minute
             no_pow_retargeting: false,
             auxpow_height: 371_337,
             strict_chain_id: true,
             auxpow_chain_id: 0x0062,
+            digishield_activation_height: 145000,
     };
 
     /// The Dogecoin testnet parameters.
+    /// Ref: <https://github.com/dogecoin/dogecoin/blob/2c513d0172e8bc86fe9a337693b26f2fdf68a013/src/chainparams.cpp#L229>
     pub const TESTNET: Params = Params {
             network: Network::Testnet,
             bip16_time: 1333238400,                 // Apr 1 2012
@@ -105,16 +109,16 @@ impl Params {
             miner_confirmation_window: 10080,       // 60 * 24 * 7 = 10,080 blocks, or one week
             pow_limit: Target::MAX_ATTAINABLE_TESTNET_DOGE,
             max_attainable_target: Target::MAX_ATTAINABLE_TESTNET_DOGE,
-            pow_target_spacing: 60,           // 1 minute
-            pow_target_timespan: 4 * 60 * 60, // pre-digishield: 4 hours
-            allow_min_difficulty_blocks: true,
+            pow_target_spacing: ONE_MINUTE,           // 1 minute
             no_pow_retargeting: false,
             auxpow_height: 158_100,
             strict_chain_id: false,
             auxpow_chain_id: 0x0062,
+            digishield_activation_height: 145000,
     };
 
     /// The Dogecoin regtest parameters.
+    /// Ref: <https://github.com/dogecoin/dogecoin/blob/2c513d0172e8bc86fe9a337693b26f2fdf68a013/src/chainparams.cpp#L382>
     pub const REGTEST: Params = Params {
             network: Network::Regtest,
             bip16_time: 1333238400,  // Apr 1 2012
@@ -125,13 +129,12 @@ impl Params {
             miner_confirmation_window: 720,
             pow_limit: Target::MAX_ATTAINABLE_REGTEST_DOGE,
             max_attainable_target: Target::MAX_ATTAINABLE_REGTEST_DOGE,
-            pow_target_spacing: 1,            // regtest: 1 second blocks
-            pow_target_timespan: 4 * 60 * 60, // pre-digishield: 4 hours
-            allow_min_difficulty_blocks: true,
+            pow_target_spacing: ONE_SECOND,            // regtest: 1 second blocks
             no_pow_retargeting: true,
             auxpow_height: 20,
             strict_chain_id: true,
             auxpow_chain_id: 0x0062,
+            digishield_activation_height: 10,
     };
 
     /// Creates parameters set for the given network.
@@ -143,6 +146,37 @@ impl Params {
         }
     }
 
+    /// Checks if Digishield difficulty adjustment is activated at the given block height.
+    pub const fn is_digishield_activated(&self, height: u32) -> bool {
+         height >= self.digishield_activation_height
+    }
+
+    /// Returns the target timespan (in seconds) used for PoW retargeting at the given block height.
+    pub const fn pow_target_timespan(&self, height: u32) -> i64 {
+        if !self.is_digishield_activated(height) {
+            FOUR_HOURS
+        } else {
+            match self.network {
+                Network::Dogecoin => ONE_MINUTE,
+                Network::Testnet => ONE_MINUTE,
+                Network::Regtest => ONE_SECOND,
+            }
+        }
+    }
+
+    /// Determines whether minimal difficulty may be used for mining blocks.
+    pub const fn allow_min_difficulty_blocks(&self, height: u32) -> bool {
+        match self.network {
+            Network::Dogecoin => false,
+            Network::Testnet => match height {
+                0..=144_999 => true,
+                145_000..=157_499 => false,
+                157_500.. => true,
+            }
+            Network::Regtest => true,
+        }
+    }
+
     /// Checks if legacy blocks can be mined at the given block height.
     pub const fn allow_legacy_blocks(&self, height: u32) -> bool {
         height < self.auxpow_height
@@ -151,4 +185,33 @@ impl Params {
 
 impl AsRef<Params> for Params {
     fn as_ref(&self) -> &Params { self }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn digishield_activation() {
+        let pre_digishield_heights = [5_000, 10_000, 144_999];
+        let digishield_heights = [145_000, 145_001, 1_000_000];
+        let params = [Params::MAINNET, Params::TESTNET];
+        for param in params {
+            for &height in pre_digishield_heights.iter() {
+                assert!(!param.is_digishield_activated(height));
+            }
+            for &height in digishield_heights.iter() {
+                assert!(param.is_digishield_activated(height));
+            }
+        }
+
+        let pre_digishield_heights_regtest = [0, 5, 9];
+        let digishield_heights_regtest = [10, 11, 100];
+        for &height in pre_digishield_heights_regtest.iter() {
+            assert!(!Params::REGTEST.is_digishield_activated(height));
+        }
+        for &height in digishield_heights_regtest.iter() {
+            assert!(Params::REGTEST.is_digishield_activated(height));
+        }
+    }
 }

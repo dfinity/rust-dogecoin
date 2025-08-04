@@ -13,7 +13,6 @@ use crate::blockdata::block::BlockHash;
 use crate::blockdata::transaction::{Txid, Wtxid};
 use crate::consensus::encode::{self, Decodable, Encodable};
 use crate::internal_macros::impl_consensus_encoding;
-use crate::p2p;
 
 /// An inventory item.
 #[derive(PartialEq, Eq, Clone, Debug, Copy, Hash, PartialOrd, Ord)]
@@ -127,12 +126,8 @@ pub struct GetHeadersMessage {
 
 impl GetBlocksMessage {
     /// Construct a new `getblocks` message
-    pub fn new(locator_hashes: Vec<BlockHash>, stop_hash: BlockHash) -> GetBlocksMessage {
-        GetBlocksMessage { version: p2p::PROTOCOL_VERSION, locator_hashes, stop_hash }
-    }
-    /// Set the version number.
-    pub fn with_version(self, version: u32) -> Self {
-        Self { version, ..self }
+    pub fn new(version: u32, locator_hashes: Vec<BlockHash>, stop_hash: BlockHash) -> GetBlocksMessage {
+        GetBlocksMessage { version, locator_hashes, stop_hash }
     }
 }
 
@@ -140,12 +135,8 @@ impl_consensus_encoding!(GetBlocksMessage, version, locator_hashes, stop_hash);
 
 impl GetHeadersMessage {
     /// Construct a new `getheaders` message
-    pub fn new(locator_hashes: Vec<BlockHash>, stop_hash: BlockHash) -> GetHeadersMessage {
-        GetHeadersMessage { version: p2p::PROTOCOL_VERSION, locator_hashes, stop_hash }
-    }
-    /// Set the version number.
-    pub fn with_version(self, version: u32) -> Self {
-        Self { version, ..self }
+    pub fn new(version: u32, locator_hashes: Vec<BlockHash>, stop_hash: BlockHash) -> GetHeadersMessage {
+        GetHeadersMessage { version, locator_hashes, stop_hash }
     }
 }
 

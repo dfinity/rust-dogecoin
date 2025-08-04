@@ -99,6 +99,7 @@ fn build_version_message(address: SocketAddr) -> NetworkMessage {
 
     // Construct the message
     NetworkMessage::Version(message_network::VersionMessage::new(
+        p2p::PROTOCOL_VERSION,
         services,
         timestamp as i64,
         addr_recv,
