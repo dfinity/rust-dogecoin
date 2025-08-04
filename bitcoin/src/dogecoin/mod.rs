@@ -386,7 +386,7 @@ mod tests {
         let starting_bits = CompactTarget::from_consensus(0x1b01dc29); // Block 1_531_881 compact target
         let start_time: i64 = 1483302572; // Block 1_531_880 unix time
         let end_time: i64 = 1483302608; // Block 1_531_881 unix time
-        let timespan = end_time - start_time; // Faster than expected (54 seconds diff)
+        let timespan = end_time - start_time; // Faster than expected (36 seconds diff)
         let adjustment = CompactTarget::from_next_work_required_dogecoin(starting_bits, timespan, &params, height);
         let adjustment_bits = CompactTarget::from_consensus(0x1b01c45a); // Block 1_531_882 compact target
         assert_eq!(adjustment, adjustment_bits);
