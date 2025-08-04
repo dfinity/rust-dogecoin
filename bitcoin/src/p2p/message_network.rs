@@ -11,7 +11,6 @@ use io::{Read, Write};
 
 use crate::consensus::{encode, Decodable, Encodable, ReadExt};
 use crate::internal_macros::impl_consensus_encoding;
-use crate::p2p;
 use crate::p2p::address::Address;
 use crate::p2p::ServiceFlags;
 use crate::prelude::*;
@@ -53,6 +52,7 @@ pub struct VersionMessage {
 impl VersionMessage {
     /// Constructs a new `version` message with `relay` set to false
     pub fn new(
+        version: u32,
         services: ServiceFlags,
         timestamp: i64,
         receiver: Address,
@@ -62,7 +62,7 @@ impl VersionMessage {
         start_height: i32,
     ) -> VersionMessage {
         VersionMessage {
-            version: p2p::PROTOCOL_VERSION,
+            version,
             services,
             timestamp,
             receiver,
@@ -72,10 +72,6 @@ impl VersionMessage {
             start_height,
             relay: false,
         }
-    }
-    /// Set the version number.
-    pub fn with_version(self, version: u32) -> Self {
-        Self { version, ..self }
     }
 }
 
