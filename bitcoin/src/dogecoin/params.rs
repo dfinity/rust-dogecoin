@@ -73,6 +73,7 @@ impl Params {
     pub const DOGECOIN: Params = Params::MAINNET;
 
     /// The mainnet parameters.
+    /// Ref: <https://github.com/dogecoin/dogecoin/blob/2c513d0172e8bc86fe9a337693b26f2fdf68a013/src/chainparams.cpp#L75>
     pub const MAINNET: Params = Params {
             network: Network::Dogecoin,
             bip16_time: 1333238400,                 // Apr 1 2012
@@ -89,6 +90,7 @@ impl Params {
     };
 
     /// The Dogecoin testnet parameters.
+    /// Ref: <https://github.com/dogecoin/dogecoin/blob/2c513d0172e8bc86fe9a337693b26f2fdf68a013/src/chainparams.cpp#L229>
     pub const TESTNET: Params = Params {
             network: Network::Testnet,
             bip16_time: 1333238400,                 // Apr 1 2012
@@ -105,6 +107,7 @@ impl Params {
     };
 
     /// The Dogecoin regtest parameters.
+    /// Ref: <https://github.com/dogecoin/dogecoin/blob/2c513d0172e8bc86fe9a337693b26f2fdf68a013/src/chainparams.cpp#L382>
     pub const REGTEST: Params = Params {
             network: Network::Regtest,
             bip16_time: 1333238400,  // Apr 1 2012
