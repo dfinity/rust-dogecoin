@@ -594,10 +594,12 @@ mod test {
             NetworkMessage::GetData(vec![Inventory::Transaction(hash([45u8; 32]).into())]),
             NetworkMessage::NotFound(vec![Inventory::Error]),
             NetworkMessage::GetBlocks(GetBlocksMessage::new(
+                crate::p2p::PROTOCOL_VERSION,
                 vec![hash([1u8; 32]).into(), hash([4u8; 32]).into()],
                 hash([5u8; 32]).into(),
             )),
             NetworkMessage::GetHeaders(GetHeadersMessage::new(
+                crate::p2p::PROTOCOL_VERSION,
                 vec![hash([10u8; 32]).into(), hash([40u8; 32]).into()],
                 hash([50u8; 32]).into(),
             )),
