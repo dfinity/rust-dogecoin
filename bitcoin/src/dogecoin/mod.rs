@@ -770,23 +770,23 @@ mod tests {
         let height = 1_131_290;
         let params = Params::new(Network::Dogecoin);
         // Block 1_131_288, the only information used is `time`
-        let epoch_start = Header {
+        let epoch_start = Header::new_from_pure_header( PureHeader {
             version: Version::from_consensus(6422787),
             prev_blockhash: BlockHash::from_str("ac0ffad025605732b310be7edf52111fa9511ffc54f06d21aab1c50d4085b39f").expect("failed to parse block hash"),
             merkle_root: TxMerkleNode::from_str("80c67973ef43f2df8a3641dac7da16ea59f55e4d77b9206c6e5cfa25d3bf094b").expect("failed to parse merkle root"),
             time: 1458248044,
             bits: CompactTarget::from_consensus(0x1b01e7c1),
             nonce: 0
-        };
+        });
         // Block 1_131_289, the only information used are `bits` and `time`
-        let current = Header {
+        let current = Header::new_from_pure_header( PureHeader {
             version: Version::from_consensus(6422787),
             prev_blockhash: BlockHash::from_str("7724f7b3f9652ebc121ce101a10bfabd6815518b2814bd16f7a2dcc13dd121ec").expect("failed to parse block hash"),
             merkle_root: TxMerkleNode::from_str("33c13df68d2f74c76367659cc95436510ed5504ef3c53ae90679ec12ab4e8b81").expect("failed to parse merkle root"),
             time: 1458248269,
             bits: CompactTarget::from_consensus(0x1b01cf5d),
             nonce: 0
-        };
+        });
         let adjustment = CompactTarget::from_header_difficulty_adjustment_dogecoin(epoch_start, current, params, height);
         let adjustment_bits = CompactTarget::from_consensus(0x1b0269d1); // Block 1_131_290 compact target
         assert_eq!(adjustment, adjustment_bits);
@@ -831,23 +831,23 @@ mod tests {
         let height = 1_131_286;
         let params = Params::new(Network::Dogecoin);
         // Block 1_131_284, the only information used is `time`
-        let epoch_start = Header {
+        let epoch_start = Header::new_from_pure_header( PureHeader {
             version: Version::from_consensus(6422787),
             prev_blockhash: BlockHash::from_str("a695a2cc43bd5c5f32acecada764b8764b044f067909b997d4f98a6733c3fa70").expect("failed to parse block hash"),
             merkle_root: TxMerkleNode::from_str("806736d9e0cab2de97e7afc9f2031c5a0413c0bff00d82cc38fa0d568d2f7135").expect("failed to parse merkle root"),
             time: 1458247987,
             bits: CompactTarget::from_consensus(0x1b02f5b6),
             nonce: 0
-        };
+        });
         // Block 1_131_285, the only information used are `bits` and `time`
-        let current = Header {
+        let current = Header::new_from_pure_header( PureHeader {
             version: Version::from_consensus(6422787),
             prev_blockhash: BlockHash::from_str("db185a7d97060e13dd53ff759f9280d473d7bb6fccc8883fbc8f1fa1f071fc82").expect("failed to parse block hash"),
             merkle_root: TxMerkleNode::from_str("20419a4d74c0284e241ca5d3c91ea2b533d8a6502e4b6e4a7f8a2fc50d42796e").expect("failed to parse merkle root"),
             time: 1458247995,
             bits: CompactTarget::from_consensus(0x1b029d4f),
             nonce: 0
-        };
+        });
         let adjustment = CompactTarget::from_header_difficulty_adjustment_dogecoin(epoch_start, current, params, height);
         let adjustment_bits = CompactTarget::from_consensus(0x1b025a60); // Block 1_131_286 compact target
         assert_eq!(adjustment, adjustment_bits);

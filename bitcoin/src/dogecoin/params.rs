@@ -49,14 +49,15 @@ pub struct Params {
     pub max_attainable_target: Target,
     /// Expected amount of time to mine one block.
     pub pow_target_spacing: i64,
-    /// Determines whether retargeting is disabled for this network or not.
+    /// Whether retargeting is disabled for this network or not.
     pub no_pow_retargeting: bool,
     /// Height after which the Digishield difficulty adjustment algorithm is used.
     pub digishield_activation_height: u32,
-    /// Height after which mining with AuxPoW is allowed.
+    /// Height after which merged mining is allowed.
     pub auxpow_height: u32,
-    /// TODO: add doc
+    /// Whether to enforce that the parent and auxiliary block headers have different chain IDs.
     pub strict_chain_id: bool,
+    /// Expected chain ID for validating AuxPoW headers.
     pub auxpow_chain_id: i32,
 }
 
