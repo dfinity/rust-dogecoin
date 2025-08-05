@@ -322,7 +322,10 @@ impl AuxPow {
             aux_block_hash,
             &self.blockchain_branch,
             self.blockchain_index,
-        ); // TODO: correct endianness
+        );
+
+        let mut blockchain_merkle_root_le = blockchain_merkle_root.to_byte_array();
+        blockchain_merkle_root_le.reverse();
 
         let coinbase_hash = self.coinbase_tx.compute_txid();
         let transactions_merkle_root = Self::compute_merkle_root(
@@ -343,7 +346,7 @@ impl AuxPow {
 
         self.check_merged_mining_coinbase_script(
             script.as_bytes(),
-            &blockchain_merkle_root.to_byte_array(),
+            &blockchain_merkle_root_le,
             chain_id,
         )
         .map_err(AuxPowValidationError::InvalidAuxPowCoinbaseScript)?;
@@ -402,11 +405,14 @@ mod tests {
             data.extend_from_slice(&MERGED_MINING_HEADER);
         }
 
-        data.extend_from_slice(blockchain_merkle_root);
+        // Reverse endianness (big-endian → little-endian)
+        let mut blockchain_merkle_root_le = *blockchain_merkle_root;
+        blockchain_merkle_root_le.reverse();
+        data.extend_from_slice(&blockchain_merkle_root_le);
 
         let size = 1u32 << merkle_height;
-        data.extend_from_slice(&size.to_le_bytes()); // TODO: check if this should be little endian
-        data.extend_from_slice(&nonce.to_le_bytes()); // TODO: check if this should be little endian
+        data.extend_from_slice(&size.to_le_bytes());
+        data.extend_from_slice(&nonce.to_le_bytes());
 
         let mut script_data = vec![0x01, 0x02]; // Some prefix data
         script_data.extend_from_slice(&data);
@@ -802,7 +808,9 @@ mod tests {
         let mut script_data = vec![0x01, 0x02];
         script_data.extend_from_slice(&MERGED_MINING_HEADER);
         script_data.push(0xff); // Extra byte between header and merkle root
-        script_data.extend_from_slice(&blockchain_merkle_root.to_byte_array());
+        let mut blockchain_merkle_root_le = blockchain_merkle_root.to_byte_array();
+        blockchain_merkle_root_le.reverse();
+        script_data.extend_from_slice(&blockchain_merkle_root_le);
         script_data.extend_from_slice(&(1u32 << merkle_height).to_le_bytes());
         script_data.extend_from_slice(&nonce.to_le_bytes());
 
@@ -831,7 +839,9 @@ mod tests {
             AuxPow::compute_merkle_root(aux_block_hash, &blockchain_branch, expected_index);
 
         let mut script_data = vec![0; 25]; // 25 bytes prefix (>20, too far)
-        script_data.extend_from_slice(&blockchain_merkle_root.to_byte_array());
+        let mut blockchain_merkle_root_le = blockchain_merkle_root.to_byte_array();
+        blockchain_merkle_root_le.reverse();
+        script_data.extend_from_slice(&blockchain_merkle_root_le);
         script_data.extend_from_slice(&(1u32 << merkle_height).to_le_bytes());
         script_data.extend_from_slice(&nonce.to_le_bytes());
 
