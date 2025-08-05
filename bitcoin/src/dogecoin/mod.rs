@@ -327,7 +327,7 @@ mod tests {
         assert!(has_auxpow(&block_decode.header));
         assert_eq!(extract_chain_id(&block_decode.header), 98);
         assert_eq!(extract_base_version(&block_decode.header), 2);
-        assert_eq!(!is_legacy(&block_decode.header));
+        assert!(!is_legacy(&block_decode.header));
 
         assert!(block_decode.header.aux_pow.is_some());
         let auxpow_decode = block_decode.header.aux_pow.as_ref().unwrap();
