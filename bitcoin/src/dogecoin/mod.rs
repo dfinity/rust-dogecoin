@@ -65,7 +65,7 @@ pub fn has_auxpow(header: &PureHeader) -> bool {
 }
 
 /// Extracts the chain ID from the block header's version field.
-pub fn get_chain_id(header: &PureHeader) -> i32 {
+pub fn extract_chain_id(header: &PureHeader) -> i32 {
     header.version.to_consensus() >> 16
 }
 
@@ -73,11 +73,11 @@ pub fn get_chain_id(header: &PureHeader) -> i32 {
 pub fn is_legacy(header: &PureHeader) -> bool {
     header.version == Version::ONE
         // Random v2 block with no AuxPoW, treat as legacy
-        || (header.version == Version::TWO && get_chain_id(header) == 0)
+        || (header.version == Version::TWO && extract_chain_id(header) == 0)
 }
 
 /// Extracts the base version number from a block header, removing AuxPoW and chain ID bits.
-pub fn base_version(header: &PureHeader) -> i32 {
+pub fn extract_base_version(header: &PureHeader) -> i32 {
     header.version.to_consensus() % VERSION_AUXPOW
 }
 
@@ -226,20 +226,20 @@ impl core::str::FromStr for Network {
 
 #[cfg(test)]
 mod tests {
-    use hex::test_hex_unwrap as hex;
-
+    use hex::{test_hex_unwrap as hex};
+    use hashes::Hash;
     use super::*;
     use crate::block::{ValidationError, Version};
     use crate::consensus::encode::{deserialize, serialize};
     use crate::{CompactTarget, Target, Work};
     use crate::{Network as BitcoinNetwork};
 
-
     #[test]
     fn dogecoin_block_test() {
         // Mainnet Dogecoin block 5794c80b80d9c33e0737a5353cd52b1f097f61d8d2b9f471e1702345080e0002
         let some_block = hex!("01000000c76fe7f8ec09989d32b7907966fbd347134f80a7b71efce55fec502aa126ba3894b3065289ff8ba1ab4e8391771174d47cf2c974ebd24a1bdafd6c107d5a7a207d78bb52de8f001c00da8c3c0201000000010000000000000000000000000000000000000000000000000000000000000000ffffffff2602bc6d062f503253482f047178bb5208f8042975030000000d2f7374726174756d506f6f6c2f000000000100629b29c45500001976a91450e9fe87c705dcd4b7523b47e3314c2115f5d5df88ac0000000001000000015f48fabf4425324df2b5e58f4e9c771297f76f5fa37db7556f6fc1d22742da1f010000006a473044022062d29d2d26f7d826e7b72257486e294d284832743c7803a2901eb07e326b25a002207efc391b0f4e724c9d518075c0e056cc425540f845b0fd419ba8a9d49d69288301210297a2568525760a98454d84f5e5adba9fd0a41726a6fb774ddc407279e41e2061ffffffff0240bab598200000001976a91401348a2b83aeb6b1ba2a174a1a40b7c75fbeb12088ac0040be40250000001976a914025407d928ef333979d064ae233353d80e29d58c88ac00000000");
         let cutoff_block = hex!("01000000c76fe7f8ec09989d32b7907966fbd347134f80a7b71efce55fec502aa126ba3894b3065289ff8ba1ab4e8391771174d47cf2c974ebd24a1bdafd6c107d5a7a207d78bb52de8f001c00da8c3c0201000000010000000000000000000000000000000000000000000000000000000000000000ffffffff2602bc6d062f503253482f047178bb5208f8042975030000000d2f7374726174756d506f6f6c2f000000000100629b29c45500001976a91450e9fe87c705dcd4b7523b47e3314c2115f5d5df88ac0000000001000000015f48fabf4425324df2b5e58f4e9c771297f76f5fa37db7556f6fc1d22742da1f010000006a473044022062d29d2d26f7d826e7b72257486e294d284832743c7803a2901eb07e326b25a002207efc391b0f4e724c9d518075c0e056cc425540f845b0fd419ba8a9d49d69288301210297a2568525760a98454d84f5e5adba9fd0a41726a6fb774ddc407279e41e2061ffffffff0240bab598200000001976a91401348a2b83aeb6b1ba2a174a1a40b7c75fbeb12088ac0040be40250000001976a914025407d928ef333979d064ae233353d80e29d58c88ac");
+        let header = &some_block[0..80];
 
         let currhash = hex!("02000e08452370e171f4b9d2d8617f091f2bd53c35a537073ec3d9800bc89457");
         let prevhash = hex!("c76fe7f8ec09989d32b7907966fbd347134f80a7b71efce55fec502aa126ba38");
@@ -255,7 +255,7 @@ mod tests {
         assert_eq!(serialize(&real_decode.header.block_hash()), currhash);
         assert_eq!(real_decode.header.version, Version::ONE);
         assert_eq!(serialize(&real_decode.header.prev_blockhash), prevhash);
-        // assert_eq!(real_decode.header.merkle_root, real_decode.compute_merkle_root().unwrap());
+        assert_eq!(real_decode.header.merkle_root, real_decode.compute_merkle_root().unwrap());
         assert_eq!(serialize(&real_decode.header.merkle_root), merkle);
         assert_eq!(real_decode.header.time, 1388017789);
         assert_eq!(real_decode.header.bits, CompactTarget::from_consensus(469798878));
@@ -263,14 +263,86 @@ mod tests {
         assert_eq!(real_decode.header.work(), work);
         assert_eq!(
             real_decode.header.validate_pow_with_scrypt(real_decode.header.target()).unwrap(),
-            real_decode.header.block_hash_with_scrypt()
+            real_decode.block_hash_with_scrypt()
         );
         // Bitcoin network is used because Dogecoin's difficulty calculation is based on Bitcoin's,
         // which uses Bitcoin's `max_attainable_target` value
         assert_eq!(real_decode.header.difficulty(BitcoinNetwork::Bitcoin), 455);
         assert_eq!(real_decode.header.difficulty_float(), 455.52430084170516);
 
+        assert_eq!(has_auxpow(&real_decode.header), false);
+        assert_eq!(extract_chain_id(&real_decode.header), 0);
+        assert_eq!(extract_base_version(&real_decode.header), 1);
+        assert_eq!(is_legacy(&real_decode.header), true);
+
+        assert!(real_decode.header.aux_pow.is_none());
+
+        assert_eq!(serialize(&real_decode.header.pure_header), header);
+        assert_eq!(serialize(&real_decode.header), header);
         assert_eq!(serialize(&real_decode), some_block);
+    }
+
+    #[test]
+    fn dogecoin_block_test_with_auxpow() {
+        // Mainnet Dogecoin block d3ea48350b102b90acf9eac6629072d5f697c02faf360b26d365e7b2bfb98070
+        let block = hex!("020162001e21ad14bc1ef20cf2d58e2b755ae4a7bfb75c906c74ef3dbb97cc57dcd77581b14423c43517df2b4f3277731daba29d0d865b515a6f19f5fb61d5799b28f2c9b48713540fa8071b0000000001000000010000000000000000000000000000000000000000000000000000000000000000ffffffff4f032ac209fabe6d6dd3ea48350b102b90acf9eac6629072d5f697c02faf360b26d365e7b2bfb980700100000000000000062f503253482f04ce871354080811312915000000092f7374726174756d2f000000000100f2052a010000001976a914f332ec6f1729495e7edcd8ce9d887742567fe60988ac0000000006d2bbd93141ea6d2c8434caeb01828a2a522275b66d2b21fe4ed8230cfe65a101ad2f07c348abdc05f57e2e7d8763488aad71df9f557aec46ae0207ae2bb74a1500000000000000000002000000f288b555ed9b44c814afbbbac135d95e0984a5cc7cb554fccbd2ca27c5e423cebf3021ed058ac83eaa0f64b0d405fc99216209b7e56deeeefceb3629210d1cabcb8713545a50021bc40227b50301000000010000000000000000000000000000000000000000000000000000000000000000ffffffff0d0300b1050101062f503253482fffffffff010085fd36af050000232102c9cbaeb767cc8c884204601f322c6977890cdd3d274f8b1a704ae00382102191ac0000000001000000011fcccc77028fc5fb96d60ee5f258da271ba9b4fdec12594a5dd2efa1fb5bd14b010000006b483045022100f4a17664176706f74877433dbfb8e68a5c1e45730da9248a8da3bab833cea1ca022018fee77621c20f196b82c3c8fd663959b0c8ea985b0407bdbac1414a5a5a21bf0121033fcc1cb9c1b7b11758eb2cd3a25b4ff917a5e248f5d6fcc74160dd6a450acf8bffffffff020759dd6e000000001976a914a553c686ac1aa534ffcb3b694c463944175a6f3c88ac8548f276890700001976a914a1ea13863020f36897b671ad328d98e9364f12b488ac000000000100000001215c45fc31d3beae4a5c76efbb0925d0b4bace72f62248aa3777927eecb42152000000006b483045022100bd3f18da6acd8180ed99c7c7fc6feab18653008cc58be5c32a470193aea330860220719c64121805606240c48dab2e8e3f3d82501b78b78597043ca134abf4c85443012103e6435d9ad2a3f3ff2d2c58aef41075df4eb5417c313d3ea4d5bb87ab46241940ffffffff0140ab8aac140000001976a91481db1aa49ebc6a71cad96949eb28e22af85eb0bd88ac00000000");
+        let header = &block[0..398];
+        let pure_header = &header[0..80];
+        let auxpow = &header[80..];
+        let auxpow_coinbase_tx = &auxpow[..164];
+        let auxpow_parent_hash = &auxpow[164..196];
+        let auxpow_coinbase_branch = &auxpow[196..229];
+        let auxpow_coinbase_index = &auxpow[229..233];
+        let auxpow_blockchain_branch = &auxpow[233..234];
+        let auxpow_blockchain_index = &auxpow[234..238];
+        let auxpow_parent_block_header = &auxpow[238..];
+
+        let currhash = hex!("7080b9bfb2e765d3260b36af2fc097f6d5729062c6eaf9ac902b100b3548ead3");
+        let prevhash = hex!("1e21ad14bc1ef20cf2d58e2b755ae4a7bfb75c906c74ef3dbb97cc57dcd77581");
+        let merkle = hex!("b14423c43517df2b4f3277731daba29d0d865b515a6f19f5fb61d5799b28f2c9");
+
+        let decode: Result<Block, _> = deserialize(&block);
+        assert!(decode.is_ok());
+        let block_decode = decode.unwrap();
+
+        assert_eq!(serialize(&block_decode.header.block_hash()), currhash);
+        assert_eq!(block_decode.header.version, Version::from_consensus(6422786));
+        assert_eq!(serialize(&block_decode.header.prev_blockhash), prevhash);
+        assert_eq!(block_decode.header.merkle_root, block_decode.compute_merkle_root().unwrap());
+        assert_eq!(serialize(&block_decode.header.merkle_root), merkle);
+        assert_eq!(block_decode.header.time, 1410566068);
+        assert_eq!(block_decode.header.bits, CompactTarget::from_consensus(453486607));
+        assert_eq!(block_decode.header.nonce, 0);
+
+        // Should fail because AuxPow is used
+        assert_eq!(
+            block_decode.header.validate_pow_with_scrypt(block_decode.header.target()),
+            Err(ValidationError::BadProofOfWork)
+        );
+        // Bitcoin network is used because Dogecoin's difficulty calculation is based on Bitcoin's,
+        // which uses Bitcoin's `max_attainable_target` value
+        assert_eq!(block_decode.header.difficulty(BitcoinNetwork::Bitcoin), 8559);
+        assert_eq!(block_decode.header.difficulty_float(), 8559.417587564147);
+
+        assert_eq!(has_auxpow(&block_decode.header), true);
+        assert_eq!(extract_chain_id(&block_decode.header), 98);
+        assert_eq!(extract_base_version(&block_decode.header), 2);
+        assert_eq!(is_legacy(&block_decode.header), false);
+
+        assert!(block_decode.header.aux_pow.is_some());
+        let auxpow_decode = block_decode.header.aux_pow.as_ref().unwrap();
+        assert_eq!(serialize(&auxpow_decode.coinbase_tx), auxpow_coinbase_tx);
+        assert_eq!(auxpow_decode.parent_hash.to_byte_array(), auxpow_parent_hash);
+        assert_eq!(serialize(&auxpow_decode.coinbase_branch), auxpow_coinbase_branch);
+        assert_eq!(auxpow_decode.coinbase_index.to_le_bytes(), auxpow_coinbase_index);
+        assert_eq!(serialize(&auxpow_decode.blockchain_branch), auxpow_blockchain_branch);
+        assert_eq!(auxpow_decode.blockchain_index.to_le_bytes(), auxpow_blockchain_index);
+        assert_eq!(serialize(&auxpow_decode.parent_block_header), auxpow_parent_block_header);
+
+        assert_eq!(serialize(&auxpow_decode), auxpow);
+        assert_eq!(serialize(&block_decode.header.pure_header), pure_header);
+        assert_eq!(serialize(&block_decode.header), header);
+        assert_eq!(serialize(&block_decode), block);
     }
 
     #[test]
