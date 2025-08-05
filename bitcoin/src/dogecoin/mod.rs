@@ -270,10 +270,10 @@ mod tests {
         assert_eq!(real_decode.header.difficulty(BitcoinNetwork::Bitcoin), 455);
         assert_eq!(real_decode.header.difficulty_float(), 455.52430084170516);
 
-        assert_eq!(has_auxpow(&real_decode.header), false);
+        assert!(!has_auxpow(&real_decode.header));
         assert_eq!(extract_chain_id(&real_decode.header), 0);
         assert_eq!(extract_base_version(&real_decode.header), 1);
-        assert_eq!(is_legacy(&real_decode.header), true);
+        assert!(is_legacy(&real_decode.header));
 
         assert!(real_decode.header.aux_pow.is_none());
 
@@ -324,10 +324,10 @@ mod tests {
         assert_eq!(block_decode.header.difficulty(BitcoinNetwork::Bitcoin), 8559);
         assert_eq!(block_decode.header.difficulty_float(), 8559.417587564147);
 
-        assert_eq!(has_auxpow(&block_decode.header), true);
+        assert!(has_auxpow(&block_decode.header));
         assert_eq!(extract_chain_id(&block_decode.header), 98);
         assert_eq!(extract_base_version(&block_decode.header), 2);
-        assert_eq!(is_legacy(&block_decode.header), false);
+        assert_eq!(!is_legacy(&block_decode.header));
 
         assert!(block_decode.header.aux_pow.is_some());
         let auxpow_decode = block_decode.header.aux_pow.as_ref().unwrap();
