@@ -18,7 +18,7 @@ use crate::{BlockHash, Transaction, TxMerkleNode};
 /// AuxPow version bit, see <https://github.com/dogecoin/dogecoin/blob/d7cc7f8bbb5f790942d0ed0617f62447e7675233/src/primitives/pureheader.h#L23>
 pub const VERSION_AUXPOW: i32 = 1 << 8;
 /// Merged mining header, see <https://github.com/dogecoin/dogecoin/blob/bc8cca48968dfa3f60b5eae6a2b92bdd2870eee3/src/auxpow.h#L24>
-const MERGED_MINING_HEADER: [u8; 4] = [0xfa, 0xbe, b'm', b'm'];
+pub const MERGED_MINING_HEADER: [u8; 4] = [0xfa, 0xbe, b'm', b'm'];
 
 /// AuxPow validation error.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -367,7 +367,7 @@ mod tests {
     use crate::{CompactTarget, ScriptBuf, TxIn, TxOut, Txid, Witness};
 
     const PARENT_BLOCK_CHAIN_ID: i32 = 42;
-    const AUXPOW_BLOCK_CHAIN_ID: i32 = 98;
+    const AUXPOW_BLOCK_CHAIN_ID: i32 = 98; // Dogecoin chain ID
     const BASE_VERSION: i32 = 0x00000005;
     const NONCE: u32 = 7;
     const MERKLE_HEIGHT: usize = 30;
@@ -904,7 +904,7 @@ mod tests {
         let script = build_auxpow_coinbase_script(
             true,
             &blockchain_merkle_root.to_byte_array(),
-            merkle_height - 1,
+            merkle_height - 1, // Incorrect merkle size
             nonce,
         );
         let coinbase_tx = coinbase_from_script(script);
@@ -933,7 +933,7 @@ mod tests {
             true,
             &blockchain_merkle_root.to_byte_array(),
             merkle_height,
-            nonce + 3,
+            nonce + 3, // Incorrect nonce
         );
         let coinbase_tx = coinbase_from_script(script);
 
@@ -1026,7 +1026,7 @@ mod tests {
 
         let blockchain_branch = vec![];
 
-        let valid_auxpow = AuxPow {
+        let auxpow_mainnet_2_679_506 = AuxPow {
             coinbase_tx,
             parent_hash,
             coinbase_branch,
@@ -1039,9 +1039,8 @@ mod tests {
         let aux_block_hash =
             BlockHash::from_str("283fa35edb604a913ead7e776b534f1661723da6721131eee75a39738ed2e8f8")
                 .unwrap();
-        let chain_id = 98; // Dogecoin chain ID
 
-        assert!(valid_auxpow.check(aux_block_hash, chain_id, true).is_ok());
+        assert!(auxpow_mainnet_2_679_506.check(aux_block_hash, AUXPOW_BLOCK_CHAIN_ID, true).is_ok());
     }
 
     #[test]
@@ -1104,7 +1103,7 @@ mod tests {
             .unwrap(),
         ];
 
-        let valid_auxpow = AuxPow {
+        let auxpow_mainnet_1_000_000 = AuxPow {
             coinbase_tx,
             parent_hash,
             coinbase_branch,
@@ -1117,8 +1116,75 @@ mod tests {
         let aux_block_hash =
             BlockHash::from_str("6aae55bea74235f0c80bd066349d4440c31f2d0f27d54265ecd484d8c1d11b47")
                 .unwrap();
-        let chain_id = 98; // Dogecoin chain ID
 
-        assert!(valid_auxpow.check(aux_block_hash, chain_id, true).is_ok());
+        assert!(auxpow_mainnet_1_000_000.check(aux_block_hash, AUXPOW_BLOCK_CHAIN_ID, true).is_ok());
+    }
+
+    #[test]
+    fn test_valid_auxpow_dogecoin_mainnet_legacy() {
+        // AuxPow information for Dogecoin mainnet block, height 1_731_044
+        let coinbase_tx = deserialize_hex::<Transaction>("01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff6403c77a1245c608010910b320f69f1eb5e1b7bb45fbc108e4379b5a77dee5a3b0a406038989b964153901000000000000000076000000e1f54700580000262f425443432f20000000000000000000000000000000000000000000000000000000000000000000000002f2aff395000000001976a914088b3b2a325c12f47e60b87f7bdd7f280e144e0388ac0000000000000000266a24aa21a9ed79084e12cbfa366a9758d398d62cf8195a17a72c87583f64a568797872369aea00000000").unwrap();
+        let coinbase_tx_id =
+            Txid::from_str("7bae97400ac3ec58aa03703a3228d125b89823c017b8100715250171c9fb9dc5")
+                .unwrap();
+
+        assert_eq!(coinbase_tx.compute_txid(), coinbase_tx_id);
+        assert_eq!(coinbase_tx.input.len(), 1);
+
+        let coinbase_script = ScriptBuf::from_hex("03c77a1245c608010910b320f69f1eb5e1b7bb45fbc108e4379b5a77dee5a3b0a406038989b964153901000000000000000076000000e1f54700580000262f425443432f2000000000000000000000000000000000000000000000000000000000000000").unwrap();
+        assert_eq!(coinbase_script, coinbase_tx.input.first().unwrap().script_sig);
+
+        // Verify that the coinbase script does not contain the MERGED_MINING_HEADER
+        // This test confirms it's a legacy AuxPow (without the merged mining header format)
+        assert!(AuxPow::find_bytes(coinbase_script.as_bytes(), &MERGED_MINING_HEADER).is_none());
+
+        // Litecoin mainnet block, height 1_211_079
+        let parent_block_header = deserialize_hex::<PureHeader>("0000002086ac5d670b08f9c812a3778dcafd42ab0bf79d3e48b3a043ce56af64c47182cf8cc521420ec9f8f15ea770a2c91b85f5a72a02f18942a58a47210222b4924202832328596887451a04cbc280").unwrap();
+        let parent_hash =
+            BlockHash::from_str("3865ad8eea8a2b3b7452e5c75d411156907f65b42593e2d48b2ff95974897245")
+                .unwrap();
+
+        assert_eq!(parent_block_header.block_hash(), parent_hash);
+
+        let coinbase_branch = vec![
+            TxMerkleNode::from_str(
+                "2f7aeb2615e5251d107339a2e4d7177ac341f71b2d0d5931695f6133a64f497e",
+            )
+                .unwrap(),
+            TxMerkleNode::from_str(
+                "c9d13f7eb2a2fc00f6d4a4f941c214868ae508a2c410eee2e37936d742167d0c",
+            )
+                .unwrap(),
+            TxMerkleNode::from_str(
+                "bc82db9b6fd74cfba991bc2e422f6db3f2d6916053fcc6feaa5eca588b8bff1c",
+            )
+                .unwrap(),
+            TxMerkleNode::from_str(
+                "be46c579c5859312688104b479e2527058a5da9ce9dd5f7ef4247cfa3384ca99",
+            )
+                .unwrap(),
+            TxMerkleNode::from_str(
+                "f9813969c631dcd4c536fa7f5f371d840c8270644651d3c2536fb5abb0d846c2",
+            )
+                .unwrap(),
+        ];
+
+        let blockchain_branch = vec![];
+
+        let auxpow_mainnet_1_731_044 = AuxPow {
+            coinbase_tx,
+            parent_hash,
+            coinbase_branch,
+            coinbase_index: 0,
+            blockchain_branch,
+            blockchain_index: 0,
+            parent_block_header,
+        };
+
+        let aux_block_hash =
+            BlockHash::from_str("10b320f69f1eb5e1b7bb45fbc108e4379b5a77dee5a3b0a406038989b9641539")
+                .unwrap();
+
+        assert!(auxpow_mainnet_1_731_044.check(aux_block_hash, AUXPOW_BLOCK_CHAIN_ID, true).is_ok());
     }
 }
