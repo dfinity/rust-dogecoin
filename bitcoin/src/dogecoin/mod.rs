@@ -39,13 +39,6 @@ pub struct Header {
     pub aux_pow: Option<AuxPow>,
 }
 
-impl Header {
-    /// Creates a Dogecoin header from a block header without AuxPoW data.
-    pub fn new_from_pure_header(pure_header: PureHeader) -> Self {
-        Self { pure_header, aux_pow: None }
-    }
-}
-
 impl Deref for Header {
     type Target = PureHeader;
     fn deref(&self) -> &Self::Target {
@@ -59,26 +52,10 @@ impl DerefMut for Header {
     }
 }
 
-/// Checks if a block header indicates it was merged mined and contains AuxPow information.
-pub fn has_auxpow(header: &PureHeader) -> bool {
-    (header.version.to_consensus() & VERSION_AUXPOW) != 0
-}
-
-/// Extracts the chain ID from the block header's version field.
-pub fn extract_chain_id(header: &PureHeader) -> i32 {
-    header.version.to_consensus() >> 16
-}
-
-/// Determines if a block header represents a legacy (pre-AuxPoW) block.
-pub fn is_legacy(header: &PureHeader) -> bool {
-    header.version == Version::ONE
-        // Random v2 block with no AuxPoW, treat as legacy
-        || (header.version == Version::TWO && extract_chain_id(header) == 0)
-}
-
-/// Extracts the base version number from a block header, removing AuxPoW and chain ID bits.
-pub fn extract_base_version(header: &PureHeader) -> i32 {
-    header.version.to_consensus() % VERSION_AUXPOW
+impl From<PureHeader> for Header {
+    fn from(pure_header: PureHeader) -> Self {
+        Self { pure_header, aux_pow: None }
+    }
 }
 
 impl Decodable for Header {
@@ -87,7 +64,7 @@ impl Decodable for Header {
         r: &mut R,
     ) -> Result<Self, encode::Error> {
         let pure_header: PureHeader = Decodable::consensus_decode_from_finite_reader(r)?;
-        let aux_pow = if has_auxpow(&pure_header) {
+        let aux_pow = if pure_header.has_auxpow() {
             Some(Decodable::consensus_decode_from_finite_reader(r)?)
         } else {
             None
@@ -106,6 +83,30 @@ impl Encodable for Header {
             len += aux_pow.consensus_encode(w)?;
         }
         Ok(len)
+    }
+}
+
+impl PureHeader {
+    /// Checks if a block header indicates it was merged mined and contains AuxPow information.
+    pub fn has_auxpow(&self) -> bool {
+        (self.version.to_consensus() & VERSION_AUXPOW) != 0
+    }
+
+    /// Extracts the chain ID from the block header's version field.
+    pub fn extract_chain_id(&self) -> i32 {
+        self.version.to_consensus() >> 16
+    }
+
+    /// Determines if a block header represents a legacy (pre-AuxPoW) block.
+    pub fn is_legacy(&self) -> bool {
+        self.version == Version::ONE
+            // Random v2 block with no AuxPoW, treat as legacy
+            || (self.version == Version::TWO && self.extract_chain_id() == 0)
+    }
+
+    /// Extracts the base version number from a block header, removing AuxPoW and chain ID bits.
+    pub fn extract_base_version(&self) -> i32 {
+        self.version.to_consensus() % VERSION_AUXPOW
     }
 }
 
@@ -270,10 +271,10 @@ mod tests {
         assert_eq!(real_decode.header.difficulty(BitcoinNetwork::Bitcoin), 455);
         assert_eq!(real_decode.header.difficulty_float(), 455.52430084170516);
 
-        assert!(!has_auxpow(&real_decode.header));
-        assert_eq!(extract_chain_id(&real_decode.header), 0);
-        assert_eq!(extract_base_version(&real_decode.header), 1);
-        assert!(is_legacy(&real_decode.header));
+        assert!(!real_decode.header.has_auxpow());
+        assert_eq!(real_decode.header.extract_chain_id(), 0);
+        assert_eq!(real_decode.header.extract_base_version(), 1);
+        assert!(real_decode.header.is_legacy());
 
         assert!(real_decode.header.aux_pow.is_none());
 
@@ -324,10 +325,10 @@ mod tests {
         assert_eq!(block_decode.header.difficulty(BitcoinNetwork::Bitcoin), 8559);
         assert_eq!(block_decode.header.difficulty_float(), 8559.417587564147);
 
-        assert!(has_auxpow(&block_decode.header));
-        assert_eq!(extract_chain_id(&block_decode.header), 98);
-        assert_eq!(extract_base_version(&block_decode.header), 2);
-        assert!(!is_legacy(&block_decode.header));
+        assert!(block_decode.header.has_auxpow());
+        assert_eq!(block_decode.header.extract_chain_id(), 98);
+        assert_eq!(block_decode.header.extract_base_version(), 2);
+        assert!(!block_decode.header.is_legacy());
 
         assert!(block_decode.header.aux_pow.is_some());
         let auxpow_decode = block_decode.header.aux_pow.as_ref().unwrap();
@@ -491,14 +492,14 @@ mod tests {
         let params = Params::new(Network::Dogecoin);
         let epoch_start = genesis_block(&params).header;
         // Block 239, the only information used are `bits` and `time`
-        let current = Header::new_from_pure_header( PureHeader{
+        let current = PureHeader {
             version: Version::ONE,
             prev_blockhash: BlockHash::all_zeros(),
             merkle_root: TxMerkleNode::all_zeros(),
             time: 1386475638,
             bits: epoch_start.bits,
             nonce: epoch_start.nonce
-        });
+        }.into();
         let adjustment = CompactTarget::from_header_difficulty_adjustment_dogecoin(epoch_start, current, params, height);
         let adjustment_bits = CompactTarget::from_consensus(0x1e0fffff); // Block 240 compact target
         assert_eq!(adjustment, adjustment_bits);
@@ -512,23 +513,23 @@ mod tests {
         let height = 1_131_290;
         let params = Params::new(Network::Dogecoin);
         // Block 1_131_288, the only information used is `time`
-        let epoch_start = Header::new_from_pure_header( PureHeader {
+        let epoch_start = PureHeader {
             version: Version::from_consensus(6422787),
             prev_blockhash: BlockHash::from_str("ac0ffad025605732b310be7edf52111fa9511ffc54f06d21aab1c50d4085b39f").expect("failed to parse block hash"),
             merkle_root: TxMerkleNode::from_str("80c67973ef43f2df8a3641dac7da16ea59f55e4d77b9206c6e5cfa25d3bf094b").expect("failed to parse merkle root"),
             time: 1458248044,
             bits: CompactTarget::from_consensus(0x1b01e7c1),
             nonce: 0
-        });
+        }.into();
         // Block 1_131_289, the only information used are `bits` and `time`
-        let current = Header::new_from_pure_header( PureHeader {
+        let current = PureHeader {
             version: Version::from_consensus(6422787),
             prev_blockhash: BlockHash::from_str("7724f7b3f9652ebc121ce101a10bfabd6815518b2814bd16f7a2dcc13dd121ec").expect("failed to parse block hash"),
             merkle_root: TxMerkleNode::from_str("33c13df68d2f74c76367659cc95436510ed5504ef3c53ae90679ec12ab4e8b81").expect("failed to parse merkle root"),
             time: 1458248269,
             bits: CompactTarget::from_consensus(0x1b01cf5d),
             nonce: 0
-        });
+        }.into();
         let adjustment = CompactTarget::from_header_difficulty_adjustment_dogecoin(epoch_start, current, params, height);
         let adjustment_bits = CompactTarget::from_consensus(0x1b0269d1); // Block 1_131_290 compact target
         assert_eq!(adjustment, adjustment_bits);
@@ -543,23 +544,23 @@ mod tests {
         let params = Params::new(Network::Dogecoin);
         let starting_bits = CompactTarget::from_consensus(0x1e0fffff); // Block 479 compact target
         // Block 239, the only information used is `time`
-        let epoch_start = Header::new_from_pure_header( PureHeader{
+        let epoch_start = PureHeader{
             version: Version::ONE,
             prev_blockhash: BlockHash::all_zeros(),
             merkle_root: TxMerkleNode::all_zeros(),
             time: 1386475638,
             bits: starting_bits,
             nonce: 0
-        });
+        }.into();
         // Block 479, the only information used are `bits` and `time`
-        let current = Header::new_from_pure_header( PureHeader{
+        let current = PureHeader{
             version: Version::ONE,
             prev_blockhash: BlockHash::all_zeros(),
             merkle_root: TxMerkleNode::all_zeros(),
             time: 1386475840,
             bits: starting_bits,
             nonce: 0
-        });
+        }.into();
         let adjustment = CompactTarget::from_header_difficulty_adjustment_dogecoin(epoch_start, current, params, height);
         let adjustment_bits = CompactTarget::from_consensus(0x1e00ffff); // Block 480 compact target
         assert_eq!(adjustment, adjustment_bits);
@@ -573,23 +574,23 @@ mod tests {
         let height = 1_131_286;
         let params = Params::new(Network::Dogecoin);
         // Block 1_131_284, the only information used is `time`
-        let epoch_start = Header::new_from_pure_header( PureHeader {
+        let epoch_start = PureHeader {
             version: Version::from_consensus(6422787),
             prev_blockhash: BlockHash::from_str("a695a2cc43bd5c5f32acecada764b8764b044f067909b997d4f98a6733c3fa70").expect("failed to parse block hash"),
             merkle_root: TxMerkleNode::from_str("806736d9e0cab2de97e7afc9f2031c5a0413c0bff00d82cc38fa0d568d2f7135").expect("failed to parse merkle root"),
             time: 1458247987,
             bits: CompactTarget::from_consensus(0x1b02f5b6),
             nonce: 0
-        });
+        }.into();
         // Block 1_131_285, the only information used are `bits` and `time`
-        let current = Header::new_from_pure_header( PureHeader {
+        let current = PureHeader {
             version: Version::from_consensus(6422787),
             prev_blockhash: BlockHash::from_str("db185a7d97060e13dd53ff759f9280d473d7bb6fccc8883fbc8f1fa1f071fc82").expect("failed to parse block hash"),
             merkle_root: TxMerkleNode::from_str("20419a4d74c0284e241ca5d3c91ea2b533d8a6502e4b6e4a7f8a2fc50d42796e").expect("failed to parse merkle root"),
             time: 1458247995,
             bits: CompactTarget::from_consensus(0x1b029d4f),
             nonce: 0
-        });
+        }.into();
         let adjustment = CompactTarget::from_header_difficulty_adjustment_dogecoin(epoch_start, current, params, height);
         let adjustment_bits = CompactTarget::from_consensus(0x1b025a60); // Block 1_131_286 compact target
         assert_eq!(adjustment, adjustment_bits);

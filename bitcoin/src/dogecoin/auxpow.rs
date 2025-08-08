@@ -10,7 +10,6 @@ use core::fmt;
 use hashes::Hash;
 
 use crate::consensus::Encodable;
-use crate::dogecoin::extract_chain_id;
 use crate::internal_macros::impl_consensus_encoding;
 use crate::prelude::*;
 use crate::{BlockHash, Transaction, TxMerkleNode};
@@ -310,7 +309,7 @@ impl AuxPow {
             return Err(AuxPowValidationError::AuxPowNotFromCoinbase);
         }
 
-        if strict_chain_id && extract_chain_id(&self.parent_block_header) == chain_id {
+        if strict_chain_id && self.parent_block_header.extract_chain_id() == chain_id {
             return Err(AuxPowValidationError::ParentHasSameChainId);
         }
 
