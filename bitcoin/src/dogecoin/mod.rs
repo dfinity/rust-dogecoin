@@ -64,7 +64,7 @@ impl Decodable for Header {
         r: &mut R,
     ) -> Result<Self, encode::Error> {
         let pure_header: PureHeader = Decodable::consensus_decode_from_finite_reader(r)?;
-        let aux_pow = if pure_header.has_auxpow() {
+        let aux_pow = if pure_header.has_auxpow_bit() {
             Some(Decodable::consensus_decode_from_finite_reader(r)?)
         } else {
             None
@@ -88,7 +88,7 @@ impl Encodable for Header {
 
 impl PureHeader {
     /// Checks if a block header indicates it was merged mined and contains AuxPow information.
-    pub fn has_auxpow(&self) -> bool {
+    pub fn has_auxpow_bit(&self) -> bool {
         (self.version.to_consensus() & VERSION_AUXPOW) != 0
     }
 
@@ -271,7 +271,7 @@ mod tests {
         assert_eq!(real_decode.header.difficulty(BitcoinNetwork::Bitcoin), 455);
         assert_eq!(real_decode.header.difficulty_float(), 455.52430084170516);
 
-        assert!(!real_decode.header.has_auxpow());
+        assert!(!real_decode.header.has_auxpow_bit());
         assert_eq!(real_decode.header.extract_chain_id(), 0);
         assert_eq!(real_decode.header.extract_base_version(), 1);
         assert!(real_decode.header.is_legacy());
@@ -325,7 +325,7 @@ mod tests {
         assert_eq!(block_decode.header.difficulty(BitcoinNetwork::Bitcoin), 8559);
         assert_eq!(block_decode.header.difficulty_float(), 8559.417587564147);
 
-        assert!(block_decode.header.has_auxpow());
+        assert!(block_decode.header.has_auxpow_bit());
         assert_eq!(block_decode.header.extract_chain_id(), 98);
         assert_eq!(block_decode.header.extract_base_version(), 2);
         assert!(!block_decode.header.is_legacy());
