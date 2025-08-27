@@ -90,8 +90,7 @@ pub fn genesis_block(params: impl AsRef<Params>) -> Block {
                 time: 1386325540,
                 bits: CompactTarget::from_consensus(0x1e0ffff0),
                 nonce: 99943,
-            },
-            auxpow: None,
+            }.into(),
             txdata,
         },
         Network::Testnet => Block {
@@ -102,8 +101,7 @@ pub fn genesis_block(params: impl AsRef<Params>) -> Block {
                 time: 1391503289,
                 bits: CompactTarget::from_consensus(0x1e0ffff0),
                 nonce: 997879,
-            },
-            auxpow: None,
+            }.into(),
             txdata,
         },
         Network::Regtest => Block {
@@ -114,8 +112,7 @@ pub fn genesis_block(params: impl AsRef<Params>) -> Block {
                 time: 1296688602,
                 bits: CompactTarget::from_consensus(0x207fffff),
                 nonce: 2,
-            },
-            auxpow: None,
+            }.into(),
             txdata,
         },
     }
