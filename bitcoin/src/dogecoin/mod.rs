@@ -8,10 +8,11 @@
 pub mod address;
 pub mod constants;
 pub mod params;
+pub mod auxpow;
 
 pub use address::*;
 
-use crate::block::{Header, TxMerkleNode};
+use crate::block::{Header as PureHeader, TxMerkleNode, Version};
 use crate::consensus::{encode, Decodable, Encodable};
 use crate::dogecoin::params::Params;
 use crate::internal_macros::impl_consensus_encoding;
@@ -20,57 +21,105 @@ use crate::p2p::Magic;
 use crate::prelude::*;
 use crate::{io, BlockHash, Transaction};
 use core::fmt;
+use core::ops::{Deref, DerefMut};
+use crate::dogecoin::auxpow::{AuxPow, VERSION_AUXPOW};
 
-/// AuxPow version bit, see <https://github.com/dogecoin/dogecoin/blob/d7cc7f8bbb5f790942d0ed0617f62447e7675233/src/primitives/pureheader.h#L23>
-pub const VERSION_AUXPOW: i32 = 1 << 8;
-
-fn is_auxpow(header: Header) -> bool { (header.version.to_consensus() & VERSION_AUXPOW) != 0 }
-
-/// Data for merge-mining AuxPoW.
+/// Dogecoin block header.
 ///
-/// It contains the parent block's coinbase tx that can be verified to be in the parent block.
-/// The transaction's input contains the hash to the actual merge-mined block.
+/// ### Dogecoin Core References
+///
+/// * [CBlockHeader definition](https://github.com/dogecoin/dogecoin/blob/7237da74b8c356568644cbe4fba19d994704355b/src/primitives/block.h#L23)
 #[derive(PartialEq, Eq, Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "actual_serde"))]
-pub struct AuxPow {
-    /// The parent block's coinbase tx.
-    pub coinbase_tx: Transaction,
-    /// The parent block's hash.
-    pub parent_hash: BlockHash,
-    /// The Merkle branch linking the coinbase tx to the parent block's Merkle root.
-    pub coinbase_branch: Vec<TxMerkleNode>,
-    /// The index of the coinbase tx in the Merkle tree.
-    pub coinbase_index: i32,
-    /// The Merkle branch linking the merge-mined block to the coinbase tx.
-    pub blockchain_branch: Vec<TxMerkleNode>,
-    /// The index of the merged-mined block in the Merkle tree.
-    pub blockchain_index: i32,
-    /// Parent block header (on which the PoW is done).
-    pub parent_block: Header,
+pub struct Header {
+    /// Block header without AuxPow information.
+    pub pure_header: PureHeader,
+    /// AuxPoW structure, present if merged mining was used to mine this block.
+    pub aux_pow: Option<AuxPow>,
 }
 
-impl_consensus_encoding!(
-    AuxPow,
-    coinbase_tx,
-    parent_hash,
-    coinbase_branch,
-    coinbase_index,
-    blockchain_branch,
-    blockchain_index,
-    parent_block
-);
+impl Deref for Header {
+    type Target = PureHeader;
+    fn deref(&self) -> &Self::Target {
+        &self.pure_header
+    }
+}
+
+impl DerefMut for Header {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.pure_header
+    }
+}
+
+impl From<PureHeader> for Header {
+    fn from(pure_header: PureHeader) -> Self {
+        Self { pure_header, aux_pow: None }
+    }
+}
+
+impl Decodable for Header {
+    #[inline]
+    fn consensus_decode_from_finite_reader<R: Read + ?Sized>(
+        r: &mut R,
+    ) -> Result<Self, encode::Error> {
+        let pure_header: PureHeader = Decodable::consensus_decode_from_finite_reader(r)?;
+        let aux_pow = if pure_header.has_auxpow_bit() {
+            Some(Decodable::consensus_decode_from_finite_reader(r)?)
+        } else {
+            None
+        };
+
+        Ok(Self { pure_header, aux_pow })
+    }
+}
+
+impl Encodable for Header {
+    #[inline]
+    fn consensus_encode<W: Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
+        let mut len = 0;
+        len += self.pure_header.consensus_encode(w)?;
+        if let Some(ref aux_pow) = self.aux_pow {
+            len += aux_pow.consensus_encode(w)?;
+        }
+        Ok(len)
+    }
+}
+
+impl PureHeader {
+    /// Checks if a block header indicates it was merged mined and contains AuxPow information.
+    pub fn has_auxpow_bit(&self) -> bool {
+        (self.version.to_consensus() & VERSION_AUXPOW) != 0
+    }
+
+    /// Extracts the chain ID from the block header's version field.
+    pub fn extract_chain_id(&self) -> i32 {
+        self.version.to_consensus() >> 16
+    }
+
+    /// Determines if a block header represents a legacy (pre-AuxPoW) block.
+    pub fn is_legacy(&self) -> bool {
+        self.version == Version::ONE
+            // Random v2 block with no AuxPoW, treat as legacy
+            || (self.version == Version::TWO && self.extract_chain_id() == 0)
+    }
+
+    /// Extracts the base version number from a block header, removing AuxPoW and chain ID bits.
+    pub fn extract_base_version(&self) -> i32 {
+        self.version.to_consensus() % VERSION_AUXPOW
+    }
+}
 
 /// Dogecoin block.
 ///
 /// A collection of transactions with an attached proof of work.
-/// The AuxPoW is present if the block was mined using merge-mining.
+/// The AuxPoW data is present in `header` if the block was mined using merged-mining.
 ///
-/// See [Bitcoin Wiki: Block][wiki-block] and [Bitcoin Wiki: Merged_mining_specification][merge-mining]
+/// See [Bitcoin Wiki: Block][wiki-block] and [Bitcoin Wiki: Merged_mining_specification][merged-mining]
 /// for more information.
 ///
 /// [wiki-block]: https://en.bitcoin.it/wiki/Block
-/// [merge-mining]: https://en.bitcoin.it/wiki/Merged_mining_specification
+/// [merged-mining]: https://en.bitcoin.it/wiki/Merged_mining_specification
 ///
 /// ### Dogecoin Core References
 ///
@@ -79,10 +128,8 @@ impl_consensus_encoding!(
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(crate = "actual_serde"))]
 pub struct Block {
-    /// The block header.
+    /// The Dogecoin block header.
     pub header: Header,
-    /// AuxPoW structure, present if merged mining was used to mine this block.
-    pub auxpow: Option<AuxPow>,
     /// List of transactions contained in the block.
     pub txdata: Vec<Transaction>,
 }
@@ -112,35 +159,7 @@ impl Block {
     }
 }
 
-impl Decodable for Block {
-    #[inline]
-    fn consensus_decode_from_finite_reader<R: Read + ?Sized>(
-        r: &mut R,
-    ) -> Result<Self, encode::Error> {
-        let header: Header = Decodable::consensus_decode_from_finite_reader(r)?;
-        let auxpow = if is_auxpow(header) {
-            Some(Decodable::consensus_decode_from_finite_reader(r)?)
-        } else {
-            None
-        };
-        let txdata = Decodable::consensus_decode_from_finite_reader(r)?;
-
-        Ok(Self { header, auxpow, txdata })
-    }
-}
-
-impl Encodable for Block {
-    #[inline]
-    fn consensus_encode<W: Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
-        let mut len = 0;
-        len += self.header.consensus_encode(w)?;
-        if let Some(ref auxpow) = self.auxpow {
-            len += auxpow.consensus_encode(w)?;
-        }
-        len += self.txdata.consensus_encode(w)?;
-        Ok(len)
-    }
-}
+impl_consensus_encoding!(Block, header, txdata);
 
 /// The cryptocurrency network to act on.
 #[derive(Copy, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
@@ -208,20 +227,20 @@ impl core::str::FromStr for Network {
 
 #[cfg(test)]
 mod tests {
-    use hex::test_hex_unwrap as hex;
-
+    use hex::{test_hex_unwrap as hex};
+    use hashes::Hash;
     use super::*;
     use crate::block::{ValidationError, Version};
     use crate::consensus::encode::{deserialize, serialize};
     use crate::{CompactTarget, Target, Work};
     use crate::{Network as BitcoinNetwork};
 
-
     #[test]
     fn dogecoin_block_test() {
         // Mainnet Dogecoin block 5794c80b80d9c33e0737a5353cd52b1f097f61d8d2b9f471e1702345080e0002
         let some_block = hex!("01000000c76fe7f8ec09989d32b7907966fbd347134f80a7b71efce55fec502aa126ba3894b3065289ff8ba1ab4e8391771174d47cf2c974ebd24a1bdafd6c107d5a7a207d78bb52de8f001c00da8c3c0201000000010000000000000000000000000000000000000000000000000000000000000000ffffffff2602bc6d062f503253482f047178bb5208f8042975030000000d2f7374726174756d506f6f6c2f000000000100629b29c45500001976a91450e9fe87c705dcd4b7523b47e3314c2115f5d5df88ac0000000001000000015f48fabf4425324df2b5e58f4e9c771297f76f5fa37db7556f6fc1d22742da1f010000006a473044022062d29d2d26f7d826e7b72257486e294d284832743c7803a2901eb07e326b25a002207efc391b0f4e724c9d518075c0e056cc425540f845b0fd419ba8a9d49d69288301210297a2568525760a98454d84f5e5adba9fd0a41726a6fb774ddc407279e41e2061ffffffff0240bab598200000001976a91401348a2b83aeb6b1ba2a174a1a40b7c75fbeb12088ac0040be40250000001976a914025407d928ef333979d064ae233353d80e29d58c88ac00000000");
         let cutoff_block = hex!("01000000c76fe7f8ec09989d32b7907966fbd347134f80a7b71efce55fec502aa126ba3894b3065289ff8ba1ab4e8391771174d47cf2c974ebd24a1bdafd6c107d5a7a207d78bb52de8f001c00da8c3c0201000000010000000000000000000000000000000000000000000000000000000000000000ffffffff2602bc6d062f503253482f047178bb5208f8042975030000000d2f7374726174756d506f6f6c2f000000000100629b29c45500001976a91450e9fe87c705dcd4b7523b47e3314c2115f5d5df88ac0000000001000000015f48fabf4425324df2b5e58f4e9c771297f76f5fa37db7556f6fc1d22742da1f010000006a473044022062d29d2d26f7d826e7b72257486e294d284832743c7803a2901eb07e326b25a002207efc391b0f4e724c9d518075c0e056cc425540f845b0fd419ba8a9d49d69288301210297a2568525760a98454d84f5e5adba9fd0a41726a6fb774ddc407279e41e2061ffffffff0240bab598200000001976a91401348a2b83aeb6b1ba2a174a1a40b7c75fbeb12088ac0040be40250000001976a914025407d928ef333979d064ae233353d80e29d58c88ac");
+        let header = &some_block[0..80];
 
         let currhash = hex!("02000e08452370e171f4b9d2d8617f091f2bd53c35a537073ec3d9800bc89457");
         let prevhash = hex!("c76fe7f8ec09989d32b7907966fbd347134f80a7b71efce55fec502aa126ba38");
@@ -237,7 +256,7 @@ mod tests {
         assert_eq!(serialize(&real_decode.header.block_hash()), currhash);
         assert_eq!(real_decode.header.version, Version::ONE);
         assert_eq!(serialize(&real_decode.header.prev_blockhash), prevhash);
-        // assert_eq!(real_decode.header.merkle_root, real_decode.compute_merkle_root().unwrap());
+        assert_eq!(real_decode.header.merkle_root, real_decode.compute_merkle_root().unwrap());
         assert_eq!(serialize(&real_decode.header.merkle_root), merkle);
         assert_eq!(real_decode.header.time, 1388017789);
         assert_eq!(real_decode.header.bits, CompactTarget::from_consensus(469798878));
@@ -252,7 +271,79 @@ mod tests {
         assert_eq!(real_decode.header.difficulty(BitcoinNetwork::Bitcoin), 455);
         assert_eq!(real_decode.header.difficulty_float(), 455.52430084170516);
 
+        assert!(!real_decode.header.has_auxpow_bit());
+        assert_eq!(real_decode.header.extract_chain_id(), 0);
+        assert_eq!(real_decode.header.extract_base_version(), 1);
+        assert!(real_decode.header.is_legacy());
+
+        assert!(real_decode.header.aux_pow.is_none());
+
+        assert_eq!(serialize(&real_decode.header.pure_header), header);
+        assert_eq!(serialize(&real_decode.header), header);
         assert_eq!(serialize(&real_decode), some_block);
+    }
+
+    #[test]
+    fn dogecoin_block_test_with_auxpow() {
+        // Mainnet Dogecoin block d3ea48350b102b90acf9eac6629072d5f697c02faf360b26d365e7b2bfb98070
+        let block = hex!("020162001e21ad14bc1ef20cf2d58e2b755ae4a7bfb75c906c74ef3dbb97cc57dcd77581b14423c43517df2b4f3277731daba29d0d865b515a6f19f5fb61d5799b28f2c9b48713540fa8071b0000000001000000010000000000000000000000000000000000000000000000000000000000000000ffffffff4f032ac209fabe6d6dd3ea48350b102b90acf9eac6629072d5f697c02faf360b26d365e7b2bfb980700100000000000000062f503253482f04ce871354080811312915000000092f7374726174756d2f000000000100f2052a010000001976a914f332ec6f1729495e7edcd8ce9d887742567fe60988ac0000000006d2bbd93141ea6d2c8434caeb01828a2a522275b66d2b21fe4ed8230cfe65a101ad2f07c348abdc05f57e2e7d8763488aad71df9f557aec46ae0207ae2bb74a1500000000000000000002000000f288b555ed9b44c814afbbbac135d95e0984a5cc7cb554fccbd2ca27c5e423cebf3021ed058ac83eaa0f64b0d405fc99216209b7e56deeeefceb3629210d1cabcb8713545a50021bc40227b50301000000010000000000000000000000000000000000000000000000000000000000000000ffffffff0d0300b1050101062f503253482fffffffff010085fd36af050000232102c9cbaeb767cc8c884204601f322c6977890cdd3d274f8b1a704ae00382102191ac0000000001000000011fcccc77028fc5fb96d60ee5f258da271ba9b4fdec12594a5dd2efa1fb5bd14b010000006b483045022100f4a17664176706f74877433dbfb8e68a5c1e45730da9248a8da3bab833cea1ca022018fee77621c20f196b82c3c8fd663959b0c8ea985b0407bdbac1414a5a5a21bf0121033fcc1cb9c1b7b11758eb2cd3a25b4ff917a5e248f5d6fcc74160dd6a450acf8bffffffff020759dd6e000000001976a914a553c686ac1aa534ffcb3b694c463944175a6f3c88ac8548f276890700001976a914a1ea13863020f36897b671ad328d98e9364f12b488ac000000000100000001215c45fc31d3beae4a5c76efbb0925d0b4bace72f62248aa3777927eecb42152000000006b483045022100bd3f18da6acd8180ed99c7c7fc6feab18653008cc58be5c32a470193aea330860220719c64121805606240c48dab2e8e3f3d82501b78b78597043ca134abf4c85443012103e6435d9ad2a3f3ff2d2c58aef41075df4eb5417c313d3ea4d5bb87ab46241940ffffffff0140ab8aac140000001976a91481db1aa49ebc6a71cad96949eb28e22af85eb0bd88ac00000000");
+        let header = &block[0..398];
+        let pure_header = &header[0..80];
+        let auxpow = &header[80..];
+        let auxpow_coinbase_tx = &auxpow[..164];
+        let auxpow_parent_hash = &auxpow[164..196];
+        let auxpow_coinbase_branch = &auxpow[196..229];
+        let auxpow_coinbase_index = &auxpow[229..233];
+        let auxpow_blockchain_branch = &auxpow[233..234];
+        let auxpow_blockchain_index = &auxpow[234..238];
+        let auxpow_parent_block_header = &auxpow[238..];
+
+        let currhash = hex!("7080b9bfb2e765d3260b36af2fc097f6d5729062c6eaf9ac902b100b3548ead3");
+        let prevhash = hex!("1e21ad14bc1ef20cf2d58e2b755ae4a7bfb75c906c74ef3dbb97cc57dcd77581");
+        let merkle = hex!("b14423c43517df2b4f3277731daba29d0d865b515a6f19f5fb61d5799b28f2c9");
+
+        let decode: Result<Block, _> = deserialize(&block);
+        assert!(decode.is_ok());
+        let block_decode = decode.unwrap();
+
+        assert_eq!(serialize(&block_decode.header.block_hash()), currhash);
+        assert_eq!(block_decode.header.version, Version::from_consensus(6422786));
+        assert_eq!(serialize(&block_decode.header.prev_blockhash), prevhash);
+        assert_eq!(block_decode.header.merkle_root, block_decode.compute_merkle_root().unwrap());
+        assert_eq!(serialize(&block_decode.header.merkle_root), merkle);
+        assert_eq!(block_decode.header.time, 1410566068);
+        assert_eq!(block_decode.header.bits, CompactTarget::from_consensus(453486607));
+        assert_eq!(block_decode.header.nonce, 0);
+
+        // Should fail because AuxPow is used
+        assert_eq!(
+            block_decode.header.validate_pow_with_scrypt(block_decode.header.target()),
+            Err(ValidationError::BadProofOfWork)
+        );
+        // Bitcoin network is used because Dogecoin's difficulty calculation is based on Bitcoin's,
+        // which uses Bitcoin's `max_attainable_target` value
+        assert_eq!(block_decode.header.difficulty(BitcoinNetwork::Bitcoin), 8559);
+        assert_eq!(block_decode.header.difficulty_float(), 8559.417587564147);
+
+        assert!(block_decode.header.has_auxpow_bit());
+        assert_eq!(block_decode.header.extract_chain_id(), 98);
+        assert_eq!(block_decode.header.extract_base_version(), 2);
+        assert!(!block_decode.header.is_legacy());
+
+        assert!(block_decode.header.aux_pow.is_some());
+        let auxpow_decode = block_decode.header.aux_pow.as_ref().unwrap();
+        assert_eq!(serialize(&auxpow_decode.coinbase_tx), auxpow_coinbase_tx);
+        assert_eq!(auxpow_decode.parent_hash.to_byte_array(), auxpow_parent_hash);
+        assert_eq!(serialize(&auxpow_decode.coinbase_branch), auxpow_coinbase_branch);
+        assert_eq!(auxpow_decode.coinbase_index.to_le_bytes(), auxpow_coinbase_index);
+        assert_eq!(serialize(&auxpow_decode.blockchain_branch), auxpow_blockchain_branch);
+        assert_eq!(auxpow_decode.blockchain_index.to_le_bytes(), auxpow_blockchain_index);
+        assert_eq!(serialize(&auxpow_decode.parent_block_header), auxpow_parent_block_header);
+
+        assert_eq!(serialize(&auxpow_decode), auxpow);
+        assert_eq!(serialize(&block_decode.header.pure_header), pure_header);
+        assert_eq!(serialize(&block_decode.header), header);
+        assert_eq!(serialize(&block_decode), block);
     }
 
     #[test]
@@ -401,14 +492,14 @@ mod tests {
         let params = Params::new(Network::Dogecoin);
         let epoch_start = genesis_block(&params).header;
         // Block 239, the only information used are `bits` and `time`
-        let current = Header {
+        let current = PureHeader {
             version: Version::ONE,
             prev_blockhash: BlockHash::all_zeros(),
             merkle_root: TxMerkleNode::all_zeros(),
             time: 1386475638,
             bits: epoch_start.bits,
             nonce: epoch_start.nonce
-        };
+        }.into();
         let adjustment = CompactTarget::from_header_difficulty_adjustment_dogecoin(epoch_start, current, params, height);
         let adjustment_bits = CompactTarget::from_consensus(0x1e0fffff); // Block 240 compact target
         assert_eq!(adjustment, adjustment_bits);
@@ -422,23 +513,23 @@ mod tests {
         let height = 1_131_290;
         let params = Params::new(Network::Dogecoin);
         // Block 1_131_288, the only information used is `time`
-        let epoch_start = Header {
+        let epoch_start = PureHeader {
             version: Version::from_consensus(6422787),
             prev_blockhash: BlockHash::from_str("ac0ffad025605732b310be7edf52111fa9511ffc54f06d21aab1c50d4085b39f").expect("failed to parse block hash"),
             merkle_root: TxMerkleNode::from_str("80c67973ef43f2df8a3641dac7da16ea59f55e4d77b9206c6e5cfa25d3bf094b").expect("failed to parse merkle root"),
             time: 1458248044,
             bits: CompactTarget::from_consensus(0x1b01e7c1),
             nonce: 0
-        };
+        }.into();
         // Block 1_131_289, the only information used are `bits` and `time`
-        let current = Header {
+        let current = PureHeader {
             version: Version::from_consensus(6422787),
             prev_blockhash: BlockHash::from_str("7724f7b3f9652ebc121ce101a10bfabd6815518b2814bd16f7a2dcc13dd121ec").expect("failed to parse block hash"),
             merkle_root: TxMerkleNode::from_str("33c13df68d2f74c76367659cc95436510ed5504ef3c53ae90679ec12ab4e8b81").expect("failed to parse merkle root"),
             time: 1458248269,
             bits: CompactTarget::from_consensus(0x1b01cf5d),
             nonce: 0
-        };
+        }.into();
         let adjustment = CompactTarget::from_header_difficulty_adjustment_dogecoin(epoch_start, current, params, height);
         let adjustment_bits = CompactTarget::from_consensus(0x1b0269d1); // Block 1_131_290 compact target
         assert_eq!(adjustment, adjustment_bits);
@@ -453,23 +544,23 @@ mod tests {
         let params = Params::new(Network::Dogecoin);
         let starting_bits = CompactTarget::from_consensus(0x1e0fffff); // Block 479 compact target
         // Block 239, the only information used is `time`
-        let epoch_start = Header {
+        let epoch_start = PureHeader{
             version: Version::ONE,
             prev_blockhash: BlockHash::all_zeros(),
             merkle_root: TxMerkleNode::all_zeros(),
             time: 1386475638,
             bits: starting_bits,
             nonce: 0
-        };
+        }.into();
         // Block 479, the only information used are `bits` and `time`
-        let current = Header {
+        let current = PureHeader{
             version: Version::ONE,
             prev_blockhash: BlockHash::all_zeros(),
             merkle_root: TxMerkleNode::all_zeros(),
             time: 1386475840,
             bits: starting_bits,
             nonce: 0
-        };
+        }.into();
         let adjustment = CompactTarget::from_header_difficulty_adjustment_dogecoin(epoch_start, current, params, height);
         let adjustment_bits = CompactTarget::from_consensus(0x1e00ffff); // Block 480 compact target
         assert_eq!(adjustment, adjustment_bits);
@@ -483,23 +574,23 @@ mod tests {
         let height = 1_131_286;
         let params = Params::new(Network::Dogecoin);
         // Block 1_131_284, the only information used is `time`
-        let epoch_start = Header {
+        let epoch_start = PureHeader {
             version: Version::from_consensus(6422787),
             prev_blockhash: BlockHash::from_str("a695a2cc43bd5c5f32acecada764b8764b044f067909b997d4f98a6733c3fa70").expect("failed to parse block hash"),
             merkle_root: TxMerkleNode::from_str("806736d9e0cab2de97e7afc9f2031c5a0413c0bff00d82cc38fa0d568d2f7135").expect("failed to parse merkle root"),
             time: 1458247987,
             bits: CompactTarget::from_consensus(0x1b02f5b6),
             nonce: 0
-        };
+        }.into();
         // Block 1_131_285, the only information used are `bits` and `time`
-        let current = Header {
+        let current = PureHeader {
             version: Version::from_consensus(6422787),
             prev_blockhash: BlockHash::from_str("db185a7d97060e13dd53ff759f9280d473d7bb6fccc8883fbc8f1fa1f071fc82").expect("failed to parse block hash"),
             merkle_root: TxMerkleNode::from_str("20419a4d74c0284e241ca5d3c91ea2b533d8a6502e4b6e4a7f8a2fc50d42796e").expect("failed to parse merkle root"),
             time: 1458247995,
             bits: CompactTarget::from_consensus(0x1b029d4f),
             nonce: 0
-        };
+        }.into();
         let adjustment = CompactTarget::from_header_difficulty_adjustment_dogecoin(epoch_start, current, params, height);
         let adjustment_bits = CompactTarget::from_consensus(0x1b025a60); // Block 1_131_286 compact target
         assert_eq!(adjustment, adjustment_bits);

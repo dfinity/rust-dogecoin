@@ -49,10 +49,16 @@ pub struct Params {
     pub max_attainable_target: Target,
     /// Expected amount of time to mine one block.
     pub pow_target_spacing: i64,
-    /// Determines whether retargeting is disabled for this network or not.
+    /// Whether retargeting is disabled for this network or not.
     pub no_pow_retargeting: bool,
     /// Height after which the Digishield difficulty adjustment algorithm is used.
     pub digishield_activation_height: u32,
+    /// Height after which merged mining is allowed.
+    pub auxpow_height: u32,
+    /// Whether to enforce that the parent and auxiliary block headers have different chain IDs.
+    pub strict_chain_id: bool,
+    /// Expected chain ID for validating AuxPoW headers.
+    pub auxpow_chain_id: i32,
 }
 
 /// The mainnet parameters.
@@ -86,6 +92,9 @@ impl Params {
             max_attainable_target: Target::MAX_ATTAINABLE_MAINNET_DOGE,
             pow_target_spacing: ONE_MINUTE,           // 1 minute
             no_pow_retargeting: false,
+            auxpow_height: 371_337,
+            strict_chain_id: true,
+            auxpow_chain_id: 0x0062,
             digishield_activation_height: 145000,
     };
 
@@ -103,6 +112,9 @@ impl Params {
             max_attainable_target: Target::MAX_ATTAINABLE_TESTNET_DOGE,
             pow_target_spacing: ONE_MINUTE,           // 1 minute
             no_pow_retargeting: false,
+            auxpow_height: 158_100,
+            strict_chain_id: false,
+            auxpow_chain_id: 0x0062,
             digishield_activation_height: 145000,
     };
 
@@ -120,6 +132,9 @@ impl Params {
             max_attainable_target: Target::MAX_ATTAINABLE_REGTEST_DOGE,
             pow_target_spacing: ONE_SECOND,            // regtest: 1 second blocks
             no_pow_retargeting: true,
+            auxpow_height: 20,
+            strict_chain_id: true,
+            auxpow_chain_id: 0x0062,
             digishield_activation_height: 10,
     };
 
@@ -161,6 +176,11 @@ impl Params {
             }
             Network::Regtest => true,
         }
+    }
+
+    /// Checks if legacy blocks can be mined at the given block height.
+    pub const fn allow_legacy_blocks(&self, height: u32) -> bool {
+        height < self.auxpow_height
     }
 }
 

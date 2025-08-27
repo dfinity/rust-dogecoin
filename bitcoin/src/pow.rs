@@ -19,7 +19,7 @@ use crate::block::Header;
 use crate::blockdata::block::BlockHash;
 use crate::consensus::encode::{self, Decodable, Encodable};
 use crate::consensus::Params;
-use crate::dogecoin::params::Params as DogecoinParams;
+use crate::dogecoin::{params::Params as DogecoinParams, Header as DogecoinHeader};
 use crate::error::{ContainsPrefixError, MissingPrefixError, ParseIntError, PrefixedHexError, UnprefixedHexError};
 
 /// Implement traits and methods shared by `Target` and `Work`.
@@ -582,8 +582,8 @@ impl CompactTarget {
     ///
     /// The expected [`CompactTarget`] recalculation.
     pub fn from_header_difficulty_adjustment_dogecoin(
-        last_epoch_boundary: Header,
-        current: Header,
+        last_epoch_boundary: DogecoinHeader,
+        current: DogecoinHeader,
         params: impl AsRef<DogecoinParams>,
         height: u32
     ) -> CompactTarget {
