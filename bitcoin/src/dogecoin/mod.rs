@@ -656,6 +656,87 @@ mod tests {
     }
 
     #[test]
+    fn compact_target_from_adjustment_is_max_target_digishield() {
+        let height = 145_000;
+        let params = Params::new(Network::Dogecoin);
+        let starting_bits = CompactTarget::from_consensus(0x1e0fffff); // Max target
+        let timespan =  5 * params.pow_target_timespan(height); // 5x Slower than expected
+        let got = CompactTarget::from_next_work_required_dogecoin(starting_bits, timespan, &params, height);
+        let want = params.max_attainable_target.to_compact_lossy();
+        assert_eq!(got, want);
+    }
+
+    // Adapted from: <https://github.com/dogecoin/dogecoin/blob/7237da74b8c356568644cbe4fba19d994704355b/src/test/dogecoin_tests.cpp#L137>
+    #[test]
+    fn compact_target_from_adjustment_pre_digishield() {
+        let height = 0;
+        let params = Params::new(Network::Dogecoin);
+        let starting_bits = CompactTarget::from_consensus(0x1c1a1206); // Block 9_599 compact target
+        let start_time: i64 = 1386942008; // Block 9_359 unix time
+        let end_time: i64 = 1386954113; // Block 9_599 unix time
+        let timespan = end_time - start_time;
+        let adjustment = CompactTarget::from_next_work_required_dogecoin(starting_bits, timespan, &params, height);
+        let adjustment_bits = CompactTarget::from_consensus(0x1c15ea59); // Block 9_600 compact target
+        assert_eq!(adjustment, adjustment_bits);
+    }
+
+    // Adapted from: <https://github.com/dogecoin/dogecoin/blob/7237da74b8c356568644cbe4fba19d994704355b/src/test/dogecoin_tests.cpp#L151>
+    #[test]
+    fn compact_target_from_adjustment_digishield() {
+        let height = 145_000;
+        let params = Params::new(Network::Dogecoin);
+        let starting_bits = CompactTarget::from_consensus(0x1b499dfd); // Block 145_000 compact target
+        let start_time: i64 = 1395094427; // Block 144_999 unix time
+        let end_time: i64 = 1395094679; // Block 145_000 unix time
+        let timespan = end_time - start_time;
+        let adjustment = CompactTarget::from_next_work_required_dogecoin(starting_bits, timespan, &params, height);
+        let adjustment_bits = CompactTarget::from_consensus(0x1b671062); // Block 145_001 compact target
+        assert_eq!(adjustment, adjustment_bits);
+    }
+
+    // Adapted from: <https://github.com/dogecoin/dogecoin/blob/7237da74b8c356568644cbe4fba19d994704355b/src/test/dogecoin_tests.cpp#L166>
+    #[test]
+    fn compact_target_from_adjustment_digishield_modulated_upper() {
+        let height = 145_000;
+        let params = Params::new(Network::Dogecoin);
+        let starting_bits = CompactTarget::from_consensus(0x1b3439cd); // Block 145_107 compact target
+        let start_time: i64 = 1395100835; // Block 145_106 unix time
+        let end_time: i64 = 1395101360; // Block 145_107 unix time
+        let timespan = end_time - start_time; // Slower than expected (525 seconds diff)
+        let adjustment = CompactTarget::from_next_work_required_dogecoin(starting_bits, timespan, &params, height);
+        let adjustment_bits = CompactTarget::from_consensus(0x1b4e56b3); // Block 145_108 compact target
+        assert_eq!(adjustment, adjustment_bits);
+    }
+
+    // Adapted from: <https://github.com/dogecoin/dogecoin/blob/7237da74b8c356568644cbe4fba19d994704355b/src/test/dogecoin_tests.cpp#L181>
+    #[test]
+    fn compact_target_from_adjustment_digishield_modulated_lower() {
+        let height = 145_000;
+        let params = Params::new(Network::Dogecoin);
+        let starting_bits = CompactTarget::from_consensus(0x1b446f21); // Block 149_423 compact target
+        let start_time: i64 = 1395380517; // Block 149_422 unix time
+        let end_time: i64 = 1395380447; // Block 149_423 unix time
+        let timespan = end_time - start_time; // Faster than expected (-70 seconds diff)
+        let adjustment = CompactTarget::from_next_work_required_dogecoin(starting_bits, timespan, &params, height);
+        let adjustment_bits = CompactTarget::from_consensus(0x1b335358); // Block 149_424 compact target
+        assert_eq!(adjustment, adjustment_bits);
+    }
+
+    // Adapted from: <https://github.com/dogecoin/dogecoin/blob/7237da74b8c356568644cbe4fba19d994704355b/src/test/dogecoin_tests.cpp#L196>
+    #[test]
+    fn compact_target_from_adjustment_digishield_rounding() {
+        let height = 145_000;
+        let params = Params::new(Network::Dogecoin);
+        let starting_bits = CompactTarget::from_consensus(0x1b671062); // Block 145_001 compact target
+        let start_time: i64 = 1395094679; // Block 145_000 unix time
+        let end_time: i64 = 1395094727; // Block 145_001 unix time
+        let timespan = end_time - start_time; // Faster than expected (-70 seconds diff)
+        let adjustment = CompactTarget::from_next_work_required_dogecoin(starting_bits, timespan, &params, height);
+        let adjustment_bits = CompactTarget::from_consensus(0x1b6558a4); // Block 145_002 compact target
+        assert_eq!(adjustment, adjustment_bits);
+    }
+
+    #[test]
     fn roundtrip_compact_target() {
         let consensus = 0x1e0f_ffff;
         let compact = CompactTarget::from_consensus(consensus);
