@@ -223,35 +223,35 @@ mod tests {
         // Initial parameters (pre-Digishield era)
         let initial_height = 0;
         assert_eq!(params.pow_target_timespan(initial_height), 14400); // 4 hours
-        assert_eq!(params.allow_legacy_blocks(initial_height), true);
-        assert_eq!(params.is_digishield_activated(initial_height), false);
+        assert!(params.allow_legacy_blocks(initial_height));
+        assert!(!params.is_digishield_activated(initial_height));
 
         let initial_end_height = 144999;
         assert_eq!(params.pow_target_timespan(initial_end_height), 14400); // 4 hours
-        assert_eq!(params.allow_legacy_blocks(initial_end_height), true);
-        assert_eq!(params.is_digishield_activated(initial_end_height), false);
+        assert!(params.allow_legacy_blocks(initial_end_height));
+        assert!(!params.is_digishield_activated(initial_end_height));
 
         // Digishield parameters
         let digishield_height = 145000;
         assert_eq!(params.pow_target_timespan(digishield_height), 60); // 1 minute
-        assert_eq!(params.allow_legacy_blocks(digishield_height), true);
-        assert_eq!(params.is_digishield_activated(digishield_height), true);
+        assert!(params.allow_legacy_blocks(digishield_height));
+        assert!(params.is_digishield_activated(digishield_height));
 
         let digishield_end_height = 371336;
         assert_eq!(params.pow_target_timespan(digishield_end_height), 60); // 1 minute
-        assert_eq!(params.allow_legacy_blocks(digishield_end_height), true);
-        assert_eq!(params.is_digishield_activated(digishield_end_height), true);
+        assert!(params.allow_legacy_blocks(digishield_end_height));
+        assert!(params.is_digishield_activated(digishield_end_height));
 
         // AuxPow parameters
         let auxpow_height = 371337;
         assert_eq!(params.pow_target_timespan(auxpow_height), 60); // 1 minute
-        assert_eq!(params.allow_legacy_blocks(auxpow_height), false);
-        assert_eq!(params.is_digishield_activated(auxpow_height), true);
+        assert!(!params.allow_legacy_blocks(auxpow_height));
+        assert!(params.is_digishield_activated(auxpow_height));
 
         // Arbitrary point after last hard-fork
         let auxpow_high_height = 700000;
         assert_eq!(params.pow_target_timespan(auxpow_high_height), 60); // 1 minute
-        assert_eq!(params.allow_legacy_blocks(auxpow_high_height), false);
-        assert_eq!(params.is_digishield_activated(auxpow_high_height), true);
+        assert!(!params.allow_legacy_blocks(auxpow_high_height));
+        assert!(params.is_digishield_activated(auxpow_high_height));
     }
 }
