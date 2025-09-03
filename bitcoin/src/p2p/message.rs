@@ -11,7 +11,7 @@ use core::{fmt, iter};
 use hashes::{sha256d, Hash};
 use io::{Read, Write};
 
-use crate::blockdata::{block, transaction};
+use crate::blockdata::transaction;
 use crate::consensus::encode::{self, CheckedData, Decodable, Encodable, VarInt};
 use crate::merkle_tree::MerkleBlock;
 use crate::p2p::address::{AddrV2Message, Address};
@@ -150,9 +150,9 @@ impl std::error::Error for CommandStringError {
 
 /// A Network message
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct RawNetworkMessage<Block> {
+pub struct RawNetworkMessage<Header, Block> {
     magic: Magic,
-    payload: NetworkMessage<Block>,
+    payload: NetworkMessage<Header, Block>,
     payload_len: u32,
     checksum: [u8; 4],
 }
@@ -160,7 +160,7 @@ pub struct RawNetworkMessage<Block> {
 /// A Network message payload. Proper documentation is available on at
 /// [Bitcoin Wiki: Protocol Specification](https://en.bitcoin.it/wiki/Protocol_specification)
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub enum NetworkMessage<Block> {
+pub enum NetworkMessage<Header, Block> {
     /// `version`
     Version(message_network::VersionMessage),
     /// `verack`
@@ -184,7 +184,7 @@ pub enum NetworkMessage<Block> {
     /// `block`
     Block(Block),
     /// `headers`
-    Headers(Vec<block::Header>),
+    Headers(Vec<Header>),
     /// `sendheaders`
     SendHeaders,
     /// `getaddr`
@@ -243,7 +243,7 @@ pub enum NetworkMessage<Block> {
     },
 }
 
-impl<Block> NetworkMessage<Block> {
+impl<Header, Block> NetworkMessage<Header, Block> {
     /// Return the message command as a static string reference.
     ///
     /// This returns `"unknown"` for [NetworkMessage::Unknown],
@@ -300,9 +300,9 @@ impl<Block> NetworkMessage<Block> {
     }
 }
 
-impl<Block: Encodable> RawNetworkMessage<Block> {
+impl<Header: Encodable, Block: Encodable> RawNetworkMessage<Header, Block> {
     /// Creates a [RawNetworkMessage]
-    pub fn new(magic: Magic, payload: NetworkMessage<Block>) -> Self {
+    pub fn new(magic: Magic, payload: NetworkMessage<Header, Block>) -> Self {
         let mut engine = sha256d::Hash::engine();
         let payload_len = payload.consensus_encode(&mut engine).expect("engine doesn't error");
         let payload_len = u32::try_from(payload_len).expect("network message use u32 as length");
@@ -312,12 +312,12 @@ impl<Block: Encodable> RawNetworkMessage<Block> {
     }
 
     /// Consumes the [RawNetworkMessage] instance and returns the inner payload.
-    pub fn into_payload(self) -> NetworkMessage<Block> {
+    pub fn into_payload(self) -> NetworkMessage<Header, Block> {
         self.payload
     }
 
     /// The actual message data
-    pub fn payload(&self) -> &NetworkMessage<Block> {
+    pub fn payload(&self) -> &NetworkMessage<Header, Block> {
         &self.payload
     }
 
@@ -335,9 +335,9 @@ impl<Block: Encodable> RawNetworkMessage<Block> {
     pub fn command(&self) -> CommandString { self.payload.command() }
 }
 
-struct HeaderSerializationWrapper<'a>(&'a Vec<block::Header>);
+struct HeaderSerializationWrapper<'a, Header>(&'a Vec<Header>);
 
-impl<'a> Encodable for HeaderSerializationWrapper<'a> {
+impl<'a, Header: Encodable> Encodable for HeaderSerializationWrapper<'a, Header> {
     #[inline]
     fn consensus_encode<W: Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
         let mut len = 0;
@@ -350,7 +350,7 @@ impl<'a> Encodable for HeaderSerializationWrapper<'a> {
     }
 }
 
-impl<Block: Encodable> Encodable for NetworkMessage<Block> {
+impl<Header: Encodable, Block: Encodable> Encodable for NetworkMessage<Header, Block> {
     fn consensus_encode<W: Write + ?Sized>(&self, writer: &mut W) -> Result<usize, io::Error> {
         match self {
             NetworkMessage::Version(ref dat) => dat.consensus_encode(writer),
@@ -395,7 +395,7 @@ impl<Block: Encodable> Encodable for NetworkMessage<Block> {
     }
 }
 
-impl<Block: Encodable> Encodable for RawNetworkMessage<Block> {
+impl<Header: Encodable, Block: Encodable> Encodable for RawNetworkMessage<Header, Block> {
     fn consensus_encode<W: Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
         let mut len = 0;
         len += self.magic.consensus_encode(w)?;
@@ -407,9 +407,9 @@ impl<Block: Encodable> Encodable for RawNetworkMessage<Block> {
     }
 }
 
-struct HeaderDeserializationWrapper(Vec<block::Header>);
+struct HeaderDeserializationWrapper<Header>(Vec<Header>);
 
-impl Decodable for HeaderDeserializationWrapper {
+impl<Header: Decodable> Decodable for HeaderDeserializationWrapper<Header> {
     #[inline]
     fn consensus_decode_from_finite_reader<R: Read + ?Sized>(
         r: &mut R,
@@ -435,7 +435,7 @@ impl Decodable for HeaderDeserializationWrapper {
     }
 }
 
-impl<Block: Decodable> Decodable for RawNetworkMessage<Block> {
+impl<Header: Decodable, Block: Decodable> Decodable for RawNetworkMessage<Header, Block> {
     fn consensus_decode_from_finite_reader<R: Read + ?Sized>(
         r: &mut R,
     ) -> Result<Self, encode::Error> {
@@ -549,9 +549,9 @@ mod test {
     use hex::test_hex_unwrap as hex;
 
     use super::message_network::{Reject, RejectReason, VersionMessage};
-    use super::{block, AddrV2Message, Address, CommandString, Magic, MerkleBlock};
+    use super::{AddrV2Message, Address, CommandString, Magic, MerkleBlock};
     use crate::bip152::BlockTransactionsRequest;
-    use crate::blockdata::block::Block;
+    use crate::blockdata::block;
     use crate::blockdata::script::ScriptBuf;
     use crate::blockdata::transaction::Transaction;
     use crate::consensus::encode::{deserialize, deserialize_partial, serialize};
@@ -563,9 +563,10 @@ mod test {
         CFCheckpt, CFHeaders, CFilter, GetCFCheckpt, GetCFHeaders, GetCFilters,
     };
     use crate::p2p::ServiceFlags;
+    use block::{Block, Header};
 
-    type NetworkMessage = super::NetworkMessage<Block>;
-    type RawNetworkMessage = super::RawNetworkMessage<Block>;
+    type NetworkMessage = super::NetworkMessage<Header, Block>;
+    type RawNetworkMessage = super::RawNetworkMessage<Header, Block>;
 
     fn hash(slice: [u8; 32]) -> Hash {
         Hash::from_slice(&slice).unwrap()
