@@ -9,8 +9,8 @@ use bitcoin::consensus::{encode, Decodable};
 use bitcoin::p2p::{self, address, message, message_network};
 use bitcoin::secp256k1::rand::Rng;
 
-type NetworkMessage = message::NetworkMessage<bitcoin::Block>;
-type RawNetworkMessage = message::RawNetworkMessage<bitcoin::Block>;
+type NetworkMessage = message::NetworkMessage<bitcoin::block::Header, bitcoin::Block>;
+type RawNetworkMessage = message::RawNetworkMessage<bitcoin::block::Header, bitcoin::Block>;
 
 fn main() {
     // This example establishes a connection to a Bitcoin node, sends the initial
