@@ -432,192 +432,25 @@ mod tests {
     }
 
     #[test]
-    fn compact_target_from_downwards_difficulty_adjustment() {
-        let height = 240;
-        let params = Params::new(Network::Dogecoin);
-        let starting_bits = CompactTarget::from_consensus(0x1e0ffff0); // Genesis compact target on Mainnet
-        let start_time: i64 = 1386325540; // Genesis block unix time
-        let end_time: i64 = 1386475638; // Block 239 unix time
-        let timespan = end_time - start_time; // Slower than expected (150,098 seconds diff)
-        let adjustment = CompactTarget::from_next_work_required_dogecoin(starting_bits, timespan, &params, height);
-        let adjustment_bits = CompactTarget::from_consensus(0x1e0fffff); // Block 240 compact target
-        assert_eq!(adjustment, adjustment_bits);
-    }
-
-    #[test]
-    fn compact_target_from_downards_difficulty_adjustment_digishield() {
-        let height = 1531886;
-        let params = Params::new(Network::Dogecoin);
-        let starting_bits = CompactTarget::from_consensus(0x1b01c45a); // Block 1_531_885 compact target
-        let start_time: i64 = 1483302792; // Block 1_531_884 unix time
-        let end_time: i64 = 1483302869; // Block 1_531_885 unix time
-        let timespan = end_time - start_time; // Slower than expected (77 seconds diff)
-        let adjustment = CompactTarget::from_next_work_required_dogecoin(starting_bits, timespan, &params, height);
-        let adjustment_bits = CompactTarget::from_consensus(0x1b01d36e); // Block 1_531_886 compact target
-        assert_eq!(adjustment, adjustment_bits);
-    }
-
-    #[test]
-    fn compact_target_from_upwards_difficulty_adjustment() {
+    fn compact_target_from_adjustment_is_max_target() {
         let height = 480;
         let params = Params::new(Network::Dogecoin);
-        let starting_bits = CompactTarget::from_consensus(0x1e0fffff); // Block 240 compact target
-        let start_time: i64 = 1386475638; // Block 239 unix time
-        let end_time: i64 = 1386475840; // Block 479 unix time
-        let timespan = end_time - start_time; // Faster than expected (202 seconds diff)
-        let adjustment = CompactTarget::from_next_work_required_dogecoin(starting_bits, timespan, &params, height);
-        let adjustment_bits = CompactTarget::from_consensus(0x1e00ffff); // Block 480 compact target
-        assert_eq!(adjustment, adjustment_bits);
+        let starting_bits = CompactTarget::from_consensus(0x1e0fffff); // Max target
+        let timespan =  4 * params.pow_target_timespan(height); // 4x Slower than expected
+        let got = CompactTarget::from_next_work_required_dogecoin(starting_bits, timespan, &params, height);
+        let want = params.max_attainable_target.to_compact_lossy();
+        assert_eq!(got, want);
     }
 
     #[test]
-    fn compact_target_from_upwards_difficulty_adjustment_digishield() {
-        let height = 1531882;
+    fn compact_target_from_adjustment_is_max_target_digishield() {
+        let height = 145_000;
         let params = Params::new(Network::Dogecoin);
-        let starting_bits = CompactTarget::from_consensus(0x1b01dc29); // Block 1_531_881 compact target
-        let start_time: i64 = 1483302572; // Block 1_531_880 unix time
-        let end_time: i64 = 1483302608; // Block 1_531_881 unix time
-        let timespan = end_time - start_time; // Faster than expected (36 seconds diff)
-        let adjustment = CompactTarget::from_next_work_required_dogecoin(starting_bits, timespan, &params, height);
-        let adjustment_bits = CompactTarget::from_consensus(0x1b01c45a); // Block 1_531_882 compact target
-        assert_eq!(adjustment, adjustment_bits);
-    }
-
-    #[test]
-    fn compact_target_from_downwards_difficulty_adjustment_using_headers() {
-        use crate::{block::Version, dogecoin::constants::genesis_block, TxMerkleNode};
-        use hashes::Hash;
-
-        let height = 240;
-        let params = Params::new(Network::Dogecoin);
-        let epoch_start = genesis_block(&params).header;
-        // Block 239, the only information used are `bits` and `time`
-        let current = PureHeader {
-            version: Version::ONE,
-            prev_blockhash: BlockHash::all_zeros(),
-            merkle_root: TxMerkleNode::all_zeros(),
-            time: 1386475638,
-            bits: epoch_start.bits,
-            nonce: epoch_start.nonce
-        }.into();
-        let adjustment = CompactTarget::from_header_difficulty_adjustment_dogecoin(epoch_start, current, params, height);
-        let adjustment_bits = CompactTarget::from_consensus(0x1e0fffff); // Block 240 compact target
-        assert_eq!(adjustment, adjustment_bits);
-    }
-
-    #[test]
-    fn compact_target_from_downwards_difficulty_adjustment_using_headers_digishield() {
-        use crate::{block::Version, TxMerkleNode};
-        use std::str::FromStr;
-
-        let height = 1_131_290;
-        let params = Params::new(Network::Dogecoin);
-        // Block 1_131_288, the only information used is `time`
-        let epoch_start = PureHeader {
-            version: Version::from_consensus(6422787),
-            prev_blockhash: BlockHash::from_str("ac0ffad025605732b310be7edf52111fa9511ffc54f06d21aab1c50d4085b39f").expect("failed to parse block hash"),
-            merkle_root: TxMerkleNode::from_str("80c67973ef43f2df8a3641dac7da16ea59f55e4d77b9206c6e5cfa25d3bf094b").expect("failed to parse merkle root"),
-            time: 1458248044,
-            bits: CompactTarget::from_consensus(0x1b01e7c1),
-            nonce: 0
-        }.into();
-        // Block 1_131_289, the only information used are `bits` and `time`
-        let current = PureHeader {
-            version: Version::from_consensus(6422787),
-            prev_blockhash: BlockHash::from_str("7724f7b3f9652ebc121ce101a10bfabd6815518b2814bd16f7a2dcc13dd121ec").expect("failed to parse block hash"),
-            merkle_root: TxMerkleNode::from_str("33c13df68d2f74c76367659cc95436510ed5504ef3c53ae90679ec12ab4e8b81").expect("failed to parse merkle root"),
-            time: 1458248269,
-            bits: CompactTarget::from_consensus(0x1b01cf5d),
-            nonce: 0
-        }.into();
-        let adjustment = CompactTarget::from_header_difficulty_adjustment_dogecoin(epoch_start, current, params, height);
-        let adjustment_bits = CompactTarget::from_consensus(0x1b0269d1); // Block 1_131_290 compact target
-        assert_eq!(adjustment, adjustment_bits);
-    }
-
-    #[test]
-    fn compact_target_from_upwards_difficulty_adjustment_using_headers() {
-        use crate::{block::Version, TxMerkleNode};
-        use hashes::Hash;
-
-        let height = 480;
-        let params = Params::new(Network::Dogecoin);
-        let starting_bits = CompactTarget::from_consensus(0x1e0fffff); // Block 479 compact target
-        // Block 239, the only information used is `time`
-        let epoch_start = PureHeader{
-            version: Version::ONE,
-            prev_blockhash: BlockHash::all_zeros(),
-            merkle_root: TxMerkleNode::all_zeros(),
-            time: 1386475638,
-            bits: starting_bits,
-            nonce: 0
-        }.into();
-        // Block 479, the only information used are `bits` and `time`
-        let current = PureHeader{
-            version: Version::ONE,
-            prev_blockhash: BlockHash::all_zeros(),
-            merkle_root: TxMerkleNode::all_zeros(),
-            time: 1386475840,
-            bits: starting_bits,
-            nonce: 0
-        }.into();
-        let adjustment = CompactTarget::from_header_difficulty_adjustment_dogecoin(epoch_start, current, params, height);
-        let adjustment_bits = CompactTarget::from_consensus(0x1e00ffff); // Block 480 compact target
-        assert_eq!(adjustment, adjustment_bits);
-    }
-
-    #[test]
-    fn compact_target_from_upwards_difficulty_adjustment_using_headers_digishield() {
-        use crate::{block::Version, TxMerkleNode};
-        use std::str::FromStr;
-
-        let height = 1_131_286;
-        let params = Params::new(Network::Dogecoin);
-        // Block 1_131_284, the only information used is `time`
-        let epoch_start = PureHeader {
-            version: Version::from_consensus(6422787),
-            prev_blockhash: BlockHash::from_str("a695a2cc43bd5c5f32acecada764b8764b044f067909b997d4f98a6733c3fa70").expect("failed to parse block hash"),
-            merkle_root: TxMerkleNode::from_str("806736d9e0cab2de97e7afc9f2031c5a0413c0bff00d82cc38fa0d568d2f7135").expect("failed to parse merkle root"),
-            time: 1458247987,
-            bits: CompactTarget::from_consensus(0x1b02f5b6),
-            nonce: 0
-        }.into();
-        // Block 1_131_285, the only information used are `bits` and `time`
-        let current = PureHeader {
-            version: Version::from_consensus(6422787),
-            prev_blockhash: BlockHash::from_str("db185a7d97060e13dd53ff759f9280d473d7bb6fccc8883fbc8f1fa1f071fc82").expect("failed to parse block hash"),
-            merkle_root: TxMerkleNode::from_str("20419a4d74c0284e241ca5d3c91ea2b533d8a6502e4b6e4a7f8a2fc50d42796e").expect("failed to parse merkle root"),
-            time: 1458247995,
-            bits: CompactTarget::from_consensus(0x1b029d4f),
-            nonce: 0
-        }.into();
-        let adjustment = CompactTarget::from_header_difficulty_adjustment_dogecoin(epoch_start, current, params, height);
-        let adjustment_bits = CompactTarget::from_consensus(0x1b025a60); // Block 1_131_286 compact target
-        assert_eq!(adjustment, adjustment_bits);
-    }
-
-    #[test]
-    fn compact_target_from_maximum_upward_difficulty_adjustment() {
-        let pre_digishield_heights = vec![5_000, 10_000, 15_000];
-        let digishield_heights = vec![145_000, 1_000_000];
-        let starting_bits = CompactTarget::from_consensus(0x1b025a60); // Arbitrary difficulty
-        let params = Params::new(Network::Dogecoin);
-        for height in pre_digishield_heights {
-            let timespan = (0.06 * params.pow_target_timespan(height) as f64) as i64; // > 16x Faster than expected
-            let got = CompactTarget::from_next_work_required_dogecoin(starting_bits, timespan, &params, height);
-            let want = Target::from_compact(starting_bits)
-                .min_transition_threshold_dogecoin(&params, height)
-                .to_compact_lossy();
-            assert_eq!(got, want);
-        }
-        for height in digishield_heights {
-            let timespan = -params.pow_target_timespan(height); // Negative timespan
-            let got = CompactTarget::from_next_work_required_dogecoin(starting_bits, timespan, &params, height);
-            let want = Target::from_compact(starting_bits)
-                .min_transition_threshold_dogecoin(&params, height)
-                .to_compact_lossy();
-            assert_eq!(got, want);
-        }
+        let starting_bits = CompactTarget::from_consensus(0x1e0fffff); // Max target
+        let timespan =  5 * params.pow_target_timespan(height); // 5x Slower than expected
+        let got = CompactTarget::from_next_work_required_dogecoin(starting_bits, timespan, &params, height);
+        let want = params.max_attainable_target.to_compact_lossy();
+        assert_eq!(got, want);
     }
 
     #[test]
@@ -645,14 +478,185 @@ mod tests {
     }
 
     #[test]
-    fn compact_target_from_adjustment_is_max_target() {
-        let height = 480;
+    fn should_compute_target() {
+        #[derive(Debug)]
+        struct TestCase<'a> {
+            name: &'a str,
+            height: u32,
+            starting_bits: CompactTarget,
+            start_time: i64,
+            end_time: i64,
+            expected_adjustment_bits: CompactTarget,
+        }
+
+        let test_cases = vec![
+            TestCase {
+                name: "Downwards difficulty adjustment (timespan: 150,098 s, slower than expected)",
+                height: 240,
+                starting_bits: CompactTarget::from_consensus(0x1e0ffff0), // Genesis compact target on Mainnet
+                start_time: 1386325540, // Genesis block unix time
+                end_time: 1386475638, // Block 239 unix time
+                expected_adjustment_bits: CompactTarget::from_consensus(0x1e0fffff) // Block 240 compact target
+            },
+            // Adapted from: <https://github.com/dogecoin/dogecoin/blob/7237da74b8c356568644cbe4fba19d994704355b/src/test/dogecoin_tests.cpp#L151>
+            TestCase {
+                name: "Downwards difficulty adjustment Digishield (timespan: 252 s, slower than expected)",
+                height: 145_000,
+                starting_bits: CompactTarget::from_consensus(0x1b499dfd), // Block 145_000 compact target,
+                start_time: 1395094427, // Block 144_999 unix time
+                end_time: 1395094679, // Block 145_000 unix time
+                expected_adjustment_bits: CompactTarget::from_consensus(0x1b671062), // Block 145_001 compact target
+            },
+            // Adapted from: <https://github.com/dogecoin/dogecoin/blob/7237da74b8c356568644cbe4fba19d994704355b/src/test/dogecoin_tests.cpp#L166>
+            TestCase {
+                name: "Downwards difficulty adjustment Digishield (timespan: 525 s, slower than expected)",
+                height: 145_000,
+                starting_bits: CompactTarget::from_consensus(0x1b3439cd), // Block 145_107 compact target
+                start_time: 1395100835, // Block 145_106 unix time
+                end_time: 1395101360, // Block 145_107 unix time
+                expected_adjustment_bits: CompactTarget::from_consensus(0x1b4e56b3), // Block 145_108 compact target
+            },
+            TestCase {
+                name: "Downwards difficulty adjustment Digishield (timespan: 225 s, slower than expected)",
+                height: 1_131_290,
+                starting_bits: CompactTarget::from_consensus(0x1b01cf5d), // Block 1_131_289 compact target
+                start_time: 1458248044, // Block 1_131_288 unix time
+                end_time: 1458248269, // Block 1_131_289 unix time
+                expected_adjustment_bits: CompactTarget::from_consensus(0x1b0269d1) // Block 1_131_290 compact target
+            },
+            TestCase {
+                name: "Downwards difficulty adjustment Digishield (timespan: 77 s, slower than expected)",
+                height: 1_531_886,
+                starting_bits: CompactTarget::from_consensus(0x1b01c45a), // Block 1_531_885 compact target
+                start_time: 1483302792, // Block 1_531_884 unix time
+                end_time: 1483302869, // Block 1_531_885 unix time
+                expected_adjustment_bits: CompactTarget::from_consensus(0x1b01d36e) // Block 1_531_886 compact target
+            },
+            TestCase {
+                name: "Upwards difficulty adjustment (timespan: 202 s, faster than expected)",
+                height: 480,
+                starting_bits: CompactTarget::from_consensus(0x1e0fffff), // Block 240 compact target
+                start_time: 1386475638, // Block 239 unix time
+                end_time: 1386475840, // Block 479 unix time
+                expected_adjustment_bits: CompactTarget::from_consensus(0x1e00ffff) // Block 480 compact target
+            },
+            // Adapted from: <https://github.com/dogecoin/dogecoin/blob/7237da74b8c356568644cbe4fba19d994704355b/src/test/dogecoin_tests.cpp#L137>
+            TestCase {
+                name: "Upwards difficulty adjustment (timespan: 12,105 s, faster than expected)",
+                height: 0,
+                starting_bits: CompactTarget::from_consensus(0x1c1a1206), // Block 9_359 compact target,
+                start_time: 1386942008, // Block 9_359 unix time,
+                end_time: 1386954113, // Block 9_599 unix time,
+                expected_adjustment_bits: CompactTarget::from_consensus(0x1c15ea59), // Block 9_600 compact target,
+            },
+            // Adapted from: <https://github.com/dogecoin/dogecoin/blob/7237da74b8c356568644cbe4fba19d994704355b/src/test/dogecoin_tests.cpp#L181>
+            TestCase {
+                name: "Upwards difficulty adjustment Digishield (timespan: -70 s, faster than expected)",
+                height: 145_000,
+                starting_bits: CompactTarget::from_consensus(0x1b446f21), // Block 149_423 compact target
+                start_time: 1395380517, // Block 149_422 unix time
+                end_time: 1395380447, // Block 149_423 unix time
+                expected_adjustment_bits: CompactTarget::from_consensus(0x1b335358), // Block 149_424 compact target
+            },
+            TestCase {
+                name: "Upwards difficulty adjustment Digishield (timespan: 8 s, faster than expected)",
+                height: 1_131_286,
+                starting_bits: CompactTarget::from_consensus(0x1b029d4f), // Block 1_131_285 compact target
+                start_time: 1458247987, // Block 1_131_284 unix time
+                end_time: 1458247995, // Block 1_131_285 unix time
+                expected_adjustment_bits: CompactTarget::from_consensus(0x1b025a60) // Block 1_131_286 compact target
+            },
+            TestCase {
+                name: "Upwards difficulty adjustment Digishield (timespan: 36 s, faster than expected)",
+                height: 1_531_882,
+                starting_bits: CompactTarget::from_consensus(0x1b01dc29), // Block 1_531_881 compact target
+                start_time: 1483302572, // Block 1_531_880 unix time
+                end_time: 1483302608, // Block 1_531_881 unix time
+                expected_adjustment_bits: CompactTarget::from_consensus(0x1b01c45a) // Block 1_531_882 compact target
+            },
+            // Adapted from: <https://github.com/dogecoin/dogecoin/blob/7237da74b8c356568644cbe4fba19d994704355b/src/test/dogecoin_tests.cpp#L196>
+            TestCase {
+                name: "Difficulty adjustment rounding Digishield (timespan: 48 s, faster than expected)",
+                height: 145_000,
+                starting_bits: CompactTarget::from_consensus(0x1b671062), // Block 145_001 compact target
+                start_time: 1395094679, // Block 145_000 unix time
+                end_time: 1395094727, // Block 145_001 unix time
+                expected_adjustment_bits: CompactTarget::from_consensus(0x1b6558a4), // Block 145_002 compact target
+            },
+        ];
+
         let params = Params::new(Network::Dogecoin);
-        let starting_bits = CompactTarget::from_consensus(0x1e0fffff); // Block 240 compact target (max target)
-        let timespan =  4 * params.pow_target_timespan(height); // 4x Slower than expected
-        let got = CompactTarget::from_next_work_required_dogecoin(starting_bits, timespan, &params, height);
-        let want = params.max_attainable_target.to_compact_lossy();
-        assert_eq!(got, want);
+
+        // Test difficulty adjustment
+        for test_case in test_cases.iter() {
+            let timespan = test_case.end_time - test_case.start_time;
+            let adjustment = CompactTarget::from_next_work_required_dogecoin(
+                test_case.starting_bits,
+                timespan,
+                &params,
+                test_case.height,
+            );
+            assert_eq!(
+                adjustment, test_case.expected_adjustment_bits,
+                "Unexpected adjustment bits for test case: {}",
+                test_case.name
+            );
+        }
+
+        // Test difficulty adjustment using headers
+        for test_case in test_cases.iter() {
+            let start_header = PureHeader {
+                version: Version::ONE,
+                prev_blockhash: BlockHash::all_zeros(),
+                merkle_root: TxMerkleNode::all_zeros(),
+                time: test_case.start_time as u32,
+                bits: CompactTarget::from_consensus(0x1e0fffff), // Note: this value does not matter
+                nonce: 0
+            }.into();
+            let end_header = PureHeader {
+                version: Version::ONE,
+                prev_blockhash: BlockHash::all_zeros(),
+                merkle_root: TxMerkleNode::all_zeros(),
+                time: test_case.end_time as u32,
+                bits: test_case.starting_bits,
+                nonce: 0
+            }.into();
+            let adjustment = CompactTarget::from_header_difficulty_adjustment_dogecoin(
+                start_header,
+                end_header,
+                &params,
+                test_case.height
+            );
+            assert_eq!(
+                adjustment, test_case.expected_adjustment_bits,
+                "Unexpected adjustment bits for test case using headers: {}",
+                test_case.name
+            );
+        }
+    }
+
+    #[test]
+    fn compact_target_from_maximum_upward_difficulty_adjustment() {
+        let pre_digishield_heights = vec![5_000, 10_000, 15_000];
+        let digishield_heights = vec![145_000, 1_000_000];
+        let starting_bits = CompactTarget::from_consensus(0x1b025a60); // Arbitrary difficulty
+        let params = Params::new(Network::Dogecoin);
+        for height in pre_digishield_heights {
+            let timespan = (0.06 * params.pow_target_timespan(height) as f64) as i64; // > 16x Faster than expected
+            let got = CompactTarget::from_next_work_required_dogecoin(starting_bits, timespan, &params, height);
+            let want = Target::from_compact(starting_bits)
+                .min_transition_threshold_dogecoin(&params, height)
+                .to_compact_lossy();
+            assert_eq!(got, want);
+        }
+        for height in digishield_heights {
+            let timespan = -params.pow_target_timespan(height); // Negative timespan
+            let got = CompactTarget::from_next_work_required_dogecoin(starting_bits, timespan, &params, height);
+            let want = Target::from_compact(starting_bits)
+                .min_transition_threshold_dogecoin(&params, height)
+                .to_compact_lossy();
+            assert_eq!(got, want);
+        }
     }
 
     #[test]
