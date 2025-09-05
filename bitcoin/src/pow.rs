@@ -587,9 +587,9 @@ impl CompactTarget {
         params: impl AsRef<DogecoinParams>,
         height: u32
     ) -> CompactTarget {
-        let timespan = current.time - last_epoch_boundary.time;
+        let timespan = (current.time as i64) - (last_epoch_boundary.time as i64);
         let bits = current.bits;
-        CompactTarget::from_next_work_required_dogecoin(bits, timespan.into(), params, height)
+        CompactTarget::from_next_work_required_dogecoin(bits, timespan, params, height)
     }
 
     /// Creates a [`CompactTarget`] from a consensus encoded `u32`.
