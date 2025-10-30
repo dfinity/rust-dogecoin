@@ -17,7 +17,7 @@
   </p>
 </div>
 
-This library is a fork of [rust-bitcoin](https://github.com/rust-bitcoin/rust-bitcoin), adapted to support the **Dogecoin** network. For reference, see the original [rust-bitcoin README](https://github.com/rust-bitcoin/rust-bitcoin/blob/master/README.md).
+This library is a fork of [rust-bitcoin](https://github.com/rust-bitcoin/rust-bitcoin), adapted to support the **Dogecoin** network. For reference, see the original [rust-bitcoin README](https://github.com/dfinity/rust-dogecoin/blob/master/README.md).
 
 The goal of this project is to provide Dogecoin-compatible types, consensus rules, and utilities, following the architecture of rust-bitcoin, in particular:
 
