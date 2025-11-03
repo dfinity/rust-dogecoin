@@ -3,9 +3,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# 0.32.5-doge.0 - Unreleased
+# 0.32.5-doge.0 - 2025-11-03
 
-Planned initial release of the Dogecoin crate. Not yet available.
+Initial release of the rust-dogecoin crate, a fork of rust-bitcoin adapted for Dogecoin.
+
+### rust-bitcoin v0.32.5 modifications
+
+- **Scrypt Proof-of-Work**: Add scrypt-based PoW validation (`block_hash_with_scrypt()` and `validate_pow_with_scrypt()`) to support Dogecoin's PoW algorithm.
+- **Difficulty Adjustment Algorithms**:
+  - Pre-Digishield algorithm (blocks 0-144,999) with variable transition thresholds based on block height ranges
+  - Digishield algorithm (blocks 145,000+)
+  - Methods `min_transition_threshold_dogecoin()` and `max_transition_threshold_dogecoin()`
+- **Generic Network Messages**: Make `RawNetworkMessage` and `NetworkMessage` generic over `Header` and `Block` types to support AuxPoW blocks
+- Updated license to Apache-2.0 for new Dogecoin-specific code
+
+### New Dogecoin module (`bitcoin/src/dogecoin/`)
+
+- **Core Types** (`mod.rs`):
+  - `Header`: Dogecoin block header with optional AuxPoW data
+  - `Block`: Block structure supporting both legacy and AuxPoW blocks
+  - `Network`: Dogecoin mainnet, Testnet, Regtest
+  - Helper methods for AuxPoW bit detection, chain ID extraction, and legacy block identification
+
+- **AuxPoW Support** (`auxpow.rs`):
+  - AuxPow validation (coinbase script validation, merkle branch verification, chain ID checks)
+  - Error types for AuxPow validation failures
+
+- **Consensus Parameters** (`params.rs`):
+  - Dogecoin PoW parameters and methods: target spacing, max attainable target, pow target timespan
+  - Digishield and AuxPoW activation height
+  - Chain ID for merged mining
+  - BIP activation heights
+
+- **Constants** (`constants.rs`):
+  - Genesis block definitions for mainnet, testnet, and regtest
+  - Prefixes for P2PKH and P2SH addresses
+
+- **Address Handling** (`address/`):
+  - Base58 address encoding/decoding with Dogecoin-specific prefixes
+  - Support for P2PKH and P2SH address types
+  - Network validation and address parsing
 
 # 0.32.5 - 2024-11-27
 
