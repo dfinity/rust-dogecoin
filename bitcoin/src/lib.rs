@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: CC0-1.0
 
-//! # Rust Bitcoin Library
+//! # Rust Dogecoin Library
 //!
-//! This is a library that supports the Bitcoin network protocol and associated
-//! primitives. It is designed for Rust programs built to work with the Bitcoin
-//! network.
+//! This is a library that supports both the Bitcoin and Dogecoin network protocol
+//! and associated primitives. It is designed for Rust programs built to work with
+//! the Bitcoin and Dogecoin network.
 //!
 //! Except for its dependency on libsecp256k1 (and optionally libbitcoinconsensus),
 //! this library is written entirely in Rust. It illustrates the benefits of
