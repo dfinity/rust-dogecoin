@@ -45,34 +45,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "bitcoin"
-version = "0.32.5-doge.0"
-dependencies = [
- "base58ck",
- "base64",
- "bech32",
- "bincode",
- "bitcoin-internals",
- "bitcoin-io",
- "bitcoin-units",
- "bitcoin_hashes",
- "bitcoinconsensus",
- "hex-conservative",
- "hex_lit",
- "mutagen",
- "ordered",
- "scrypt",
- "secp256k1",
- "serde",
- "serde_json",
- "serde_test",
-]
-
-[[package]]
 name = "bitcoin-fuzz"
 version = "0.0.1"
 dependencies = [
- "bitcoin",
+ "dogecoin",
  "honggfuzz",
  "serde",
  "serde_cbor",
@@ -186,6 +162,30 @@ dependencies = [
  "block-buffer",
  "crypto-common",
  "subtle",
+]
+
+[[package]]
+name = "dogecoin"
+version = "0.32.5-doge.0"
+dependencies = [
+ "base58ck",
+ "base64",
+ "bech32",
+ "bincode",
+ "bitcoin-internals",
+ "bitcoin-io",
+ "bitcoin-units",
+ "bitcoin_hashes",
+ "bitcoinconsensus",
+ "hex-conservative",
+ "hex_lit",
+ "mutagen",
+ "ordered",
+ "scrypt",
+ "secp256k1",
+ "serde",
+ "serde_json",
+ "serde_test",
 ]
 
 [[package]]
