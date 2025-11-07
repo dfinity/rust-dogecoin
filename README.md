@@ -1,19 +1,18 @@
 <div align="center">
   <h1>Rust Dogecoin</h1>
 
-  <img alt="Rust Bitcoin logo by Hunter Trujillo, see license and source files under /logo" src="./logo/rust-bitcoin.png" width="300" />
+  <img alt="Rust Dogecoin logo by DFINITY Foundation, see license and source files under /logo" src="./logo/rust-btc+doge@4x.png" width="720" />
 
   <p>Library with support for de/serialization, parsing and executing on data-structures
-    and network messages related to Dogecoin.
+    and network messages related to Bitcoin and Dogecoin.
   </p>
 
   <p>
-    <a href="https://crates.io/crates/bitcoin"><img alt="Crate Info" src="https://img.shields.io/crates/v/bitcoin.svg"/></a>
+    <a href="https://crates.io/crates/bitcoin-dogecoin"><img alt="Crate Info" src="https://img.shields.io/crates/v/bitcoin-dogecoin.svg"/></a>
     <a href="https://github.com/rust-dogecoin/rust-dogecoin/blob/doge-master/LICENSE"><img alt="Apache License 2.0" src="https://img.shields.io/badge/license-Apache--2.0-blue.svg"/></a>
-    <a href="https://github.com/rust-bitcoin/rust-bitcoin/actions?query=workflow%3AContinuous%20integration"><img alt="CI Status" src="https://github.com/rust-bitcoin/rust-bitcoin/workflows/Continuous%20integration/badge.svg"></a>
-    <a href="https://docs.rs/bitcoin"><img alt="API Docs" src="https://img.shields.io/badge/docs.rs-bitcoin-green"/></a>
+    <a href="https://github.com/rust-bitcoin/rust-bitcoin/actions?query=workflow%3AContinuous%20integration"><img alt="CI Status" src="https://github.com/dfinity/rust-dogecoin/workflows/Continuous%20integration/badge.svg"></a>
+    <a href="https://docs.rs/bitcoin-dogecoin"><img alt="API Docs" src="https://img.shields.io/badge/docs.rs-bitcoin-dogecoin-green"/></a>
     <a href="https://blog.rust-lang.org/2021/11/01/Rust-1.56.1.html"><img alt="Rustc Version 1.56.1+" src="https://img.shields.io/badge/rustc-1.56.1%2B-lightgrey.svg"/></a>
-    <a href="https://github.com/model-checking/kani"><img alt="kani" src="https://github.com/rust-bitcoin/rust-bitcoin/workflows/Kani%20CI/badge.svg"></a>
   </p>
 </div>
 
