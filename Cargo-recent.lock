@@ -45,7 +45,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "bitcoin"
+name = "bitcoin-dogecoin"
 version = "0.32.5-doge.0"
 dependencies = [
  "base58ck",
@@ -72,7 +72,7 @@ dependencies = [
 name = "bitcoin-fuzz"
 version = "0.0.1"
 dependencies = [
- "bitcoin",
+ "bitcoin-dogecoin",
  "honggfuzz",
  "serde",
  "serde_cbor",
