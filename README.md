@@ -1,7 +1,7 @@
 <div align="center">
   <h1>Rust Dogecoin</h1>
 
-  <img alt="Rust Dogecoin logo by DFINITY Foundation, see license and source files under /logo" src="./logo/rust-btc+doge@4x.png" width="720" />
+  <img alt="Rust Dogecoin logo by DFINITY Foundation, see license and source files under /logo" src="https://raw.githubusercontent.com/dfinity/rust-dogecoin/doge-master/logo/rust-btc+doge@4x.png" width="720" />
 
   <p>Library with support for de/serialization, parsing and executing on data-structures
     and network messages related to Bitcoin and Dogecoin.
