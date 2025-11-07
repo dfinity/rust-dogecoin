@@ -302,4 +302,4 @@ jobs:
       - name: "Build Kani proofs"
         uses: model-checking/kani-github-action@v1.1
         with:
-          args: "--only-codegen --package dogecoin --package bitcoin-units"
+          args: "--only-codegen --package bitcoin-dogecoin --package bitcoin-units"
