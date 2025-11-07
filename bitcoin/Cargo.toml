@@ -1,8 +1,8 @@
 [package]
-name = "bitcoin"
+name = "bitcoin-dogecoin"
 version = "0.32.5-doge.0"
-license = "CC0-1.0"
-repository = "https://github.com/rust-dogecoin/rust-dogecoin/"
+license = "Apache-2.0 OR CC0-1.0"
+repository = "https://github.com/dfinity/rust-dogecoin"
 description = "General purpose library for using and interoperating with Bitcoin and Dogecoin."
 categories = ["cryptography::cryptocurrencies"]
 keywords = [ "crypto", "bitcoin", "dogecoin"]
@@ -10,6 +10,9 @@ readme = "../README.md"
 edition = "2021"
 rust-version = "1.56.1"
 exclude = ["tests", "contrib"]
+
+[lib]
+name = "bitcoin"
 
 [features]
 default = [ "std", "secp-recovery" ]
