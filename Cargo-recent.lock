@@ -46,7 +46,7 @@ dependencies = [
 
 [[package]]
 name = "bitcoin-dogecoin"
-version = "0.32.5-doge.0"
+version = "0.32.5-doge.1"
 dependencies = [
  "base58ck",
  "base64",
