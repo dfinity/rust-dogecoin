@@ -12,6 +12,11 @@
 - Backport - Add `XOnlyPublicKey` support for PSBT key retrieval and improve Taproot signing [#4443](https://github.com/rust-bitcoin/rust-bitcoin/pull/4443)
 - Backport - Add methods to retrieve inner types [#4450](https://github.com/rust-bitcoin/rust-bitcoin/pull/4450)
 
+# 0.32.5-doge.1 - 2025-11-10
+
+- Fix build doc on [docs.rs](https://docs.rs/crate/bitcoin-dogecoin/latest)
+- Add rust-dogecoin logo on githubusercontent
+
 # 0.32.5-doge.0 - 2025-11-03
 
 Initial release of the rust-dogecoin crate, a fork of rust-bitcoin adapted for Dogecoin.
