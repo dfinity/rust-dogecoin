@@ -26,7 +26,7 @@ bitcoin = { version = "0.31.0", features = [ "serde" ] }
 
 serde = { version = "1.0.103", features = [ "derive" ] }
 serde_json = "1.0"
-serde_cbor = "0.9"
+serde_cbor = "0.10"
 EOF
 
 for targetFile in $(listTargetFiles); do
