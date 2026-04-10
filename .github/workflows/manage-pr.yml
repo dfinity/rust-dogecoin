@@ -11,17 +11,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout doge-master
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           path: doge-master
       - name: Checkout merge commit
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           path: merge
           ref: "refs/pull/${{ github.event.number }}/merge"
       - name: Generate label config
         run: cd doge-master && SCAN_DIR=../merge ./contrib/gen_label_config.sh
       - name: Update labels
-        uses: actions/labeler@v5
+        uses: actions/labeler@8558fd74291d67161a8a78ce36a881fa63b766a9 # v5
         with:
           configuration-path: doge-master/.github/labeler.yml
