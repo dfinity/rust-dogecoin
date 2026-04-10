@@ -16,7 +16,7 @@ jobs:
       nightly_version: ${{ steps.read_toolchain.outputs.nightly_version }}
     steps:
       - name: "Checkout repo"
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - name: "Read nightly version"
         id: read_toolchain
         run: echo "nightly_version=$(cat nightly-version)" >> $GITHUB_OUTPUT
@@ -30,15 +30,15 @@ jobs:
         dep: [ minimal, recent ]
     steps:
       - name: "Checkout repo"
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - name: "Checkout maintainer tools"
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           repository: rust-bitcoin/rust-bitcoin-maintainer-tools
           ref: 906ffd4bcfe02242e36eaeea9761a87586ffd86f
           path: maintainer-tools
       - name: "Select toolchain"
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
       - name: "Set dependencies"
         run: cp Cargo-${{ matrix.dep }}.lock Cargo.lock
       - name: "Run test script"
@@ -54,15 +54,15 @@ jobs:
         dep: [ minimal, recent ]
     steps:
       - name: "Checkout repo"
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - name: "Checkout maintainer tools"
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           repository: rust-bitcoin/rust-bitcoin-maintainer-tools
           ref: 906ffd4bcfe02242e36eaeea9761a87586ffd86f
           path: maintainer-tools
       - name: "Select toolchain"
-        uses: dtolnay/rust-toolchain@v1
+        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
         with:
           toolchain: ${{ needs.Prepare.outputs.nightly_version }}
       - name: "Set dependencies"
@@ -79,15 +79,15 @@ jobs:
         dep: [ minimal, recent ]
     steps:
       - name: "Checkout repo"
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - name: "Checkout maintainer tools"
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           repository: rust-bitcoin/rust-bitcoin-maintainer-tools
           ref: 906ffd4bcfe02242e36eaeea9761a87586ffd86f
           path: maintainer-tools
       - name: "Select toolchain"
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
         with:
           toolchain: "1.63.0"
       - name: "Set dependencies"
@@ -105,15 +105,15 @@ jobs:
         dep: [ recent ]
     steps:
       - name: "Checkout repo"
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - name: "Checkout maintainer tools"
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           repository: rust-bitcoin/rust-bitcoin-maintainer-tools
           ref: 906ffd4bcfe02242e36eaeea9761a87586ffd86f
           path: maintainer-tools
       - name: "Select toolchain"
-        uses: dtolnay/rust-toolchain@v1
+        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
         with:
           toolchain: ${{ needs.Prepare.outputs.nightly_version }}
       - name: "Install clippy"
@@ -132,15 +132,15 @@ jobs:
         dep: [ recent ]
     steps:
       - name: "Checkout repo"
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - name: "Checkout maintainer tools"
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           repository: rust-bitcoin/rust-bitcoin-maintainer-tools
           ref: 906ffd4bcfe02242e36eaeea9761a87586ffd86f
           path: maintainer-tools
       - name: "Select toolchain"
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
       - name: "Set dependencies"
         run: cp Cargo-${{ matrix.dep }}.lock Cargo.lock
       - name: "Run test script"
@@ -156,15 +156,15 @@ jobs:
         dep: [ recent ]
     steps:
       - name: "Checkout repo"
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - name: "Checkout maintainer tools"
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           repository: rust-bitcoin/rust-bitcoin-maintainer-tools
           ref: 906ffd4bcfe02242e36eaeea9761a87586ffd86f
           path: maintainer-tools
       - name: "Select toolchain"
-        uses: dtolnay/rust-toolchain@v1
+        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
         with:
           toolchain: ${{ needs.Prepare.outputs.nightly_version }}
       - name: "Set dependencies"
@@ -182,15 +182,15 @@ jobs:
         dep: [ recent ]
     steps:
       - name: "Checkout repo"
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - name: "Checkout maintainer tools"
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           repository: rust-bitcoin/rust-bitcoin-maintainer-tools
           ref: 906ffd4bcfe02242e36eaeea9761a87586ffd86f
           path: maintainer-tools
       - name: "Select toolchain"
-        uses: dtolnay/rust-toolchain@v1
+        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
         with:
           toolchain: ${{ needs.Prepare.outputs.nightly_version }}
       - name: "Set dependencies"
@@ -203,9 +203,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: "Checkout repo"
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - name: "Select toolchain"
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
       - name: "Add architecture i386"
         run: sudo dpkg --add-architecture i386
       - name: "Install i686 gcc"
@@ -221,9 +221,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: "Checkout repo"
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - name: "Select toolchain"
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
       - name: "Install target"
         run: rustup target add s390x-unknown-linux-gnu
       - name: "Install cross"
@@ -240,11 +240,11 @@ jobs:
       CARGO_TARGET_THUMBV7M_NONE_EABI_RUNNER: "qemu-system-arm -cpu cortex-m3 -machine mps2-an385 -nographic -semihosting-config enable=on,target=native -kernel"
     steps:
       - name: "Checkout repo"
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - name: "Set up QEMU"
         run: sudo apt update && sudo apt install -y qemu-system-arm gcc-arm-none-eabi
       - name: "Select toolchain"
-        uses: dtolnay/rust-toolchain@v1
+        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
         with:
           toolchain: ${{ needs.Prepare.outputs.nightly_version }}
           targets: thumbv7m-none-eabi
@@ -267,9 +267,9 @@ jobs:
         dep: [ recent ]
     steps:
       - name: "Checkout repo"
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - name: "Select toolchain"
-        uses: dtolnay/rust-toolchain@v1
+        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
         with:
           toolchain: ${{ needs.Prepare.outputs.nightly_version }}
       - name: "Install rust-src"
@@ -287,9 +287,9 @@ jobs:
       # Note we do not use the recent lock file for wasm testing.
     steps:
       - name: "Checkout repo"
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - name: "Select toolchain"
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
       - name: "Run wasm script"
         run: cd hashes && ./contrib/wasm.sh
 
@@ -298,8 +298,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: "Checkout repo"
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - name: "Build Kani proofs"
-        uses: model-checking/kani-github-action@v1.1
+        uses: model-checking/kani-github-action@f838096619a707b0f6b2118cf435eaccfa33e51f # v1.1
         with:
           args: "--only-codegen --package bitcoin-dogecoin --package bitcoin-units"
