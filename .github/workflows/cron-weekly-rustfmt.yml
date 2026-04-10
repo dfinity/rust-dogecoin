@@ -8,8 +8,8 @@ jobs:
     name: Nightly rustfmt
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@nightly
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: dtolnay/rust-toolchain@5b842231ba77f5c045dba54ac5560fed2db780e2 # nightly
         with:
           components: rustfmt
       - name: Run Nightly rustfmt
@@ -17,7 +17,7 @@ jobs:
       - name: Get the current date
         run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
       - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@c5a7806660adbe173f04e3e038b0ccdcd758773c # v6.1.0
         with:
           author: Fmt Bot <bot@example.com>
           title: Automated nightly rustfmt (${{ env.date }})
