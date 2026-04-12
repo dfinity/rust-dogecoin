@@ -6,13 +6,12 @@ use core::fmt;
 
 use internals::write_err;
 
-use crate::dogecoin::address::{Address, NetworkUnchecked};
-use crate::dogecoin::Network;
-
 pub use crate::address::error::{
     FromScriptError, InvalidBase58PayloadLengthError, InvalidLegacyPrefixError,
     LegacyAddressTooLongError, P2shError,
 };
+use crate::dogecoin::address::{Address, NetworkUnchecked};
+use crate::dogecoin::Network;
 
 /// Address parsing error.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -62,33 +61,23 @@ impl std::error::Error for ParseError {
 }
 
 impl From<base58::Error> for ParseError {
-    fn from(e: base58::Error) -> Self {
-        Self::Base58(e)
-    }
+    fn from(e: base58::Error) -> Self { Self::Base58(e) }
 }
 
 impl From<LegacyAddressTooLongError> for ParseError {
-    fn from(e: LegacyAddressTooLongError) -> Self {
-        Self::LegacyAddressTooLong(e)
-    }
+    fn from(e: LegacyAddressTooLongError) -> Self { Self::LegacyAddressTooLong(e) }
 }
 
 impl From<InvalidBase58PayloadLengthError> for ParseError {
-    fn from(e: InvalidBase58PayloadLengthError) -> Self {
-        Self::InvalidBase58PayloadLength(e)
-    }
+    fn from(e: InvalidBase58PayloadLengthError) -> Self { Self::InvalidBase58PayloadLength(e) }
 }
 
 impl From<InvalidLegacyPrefixError> for ParseError {
-    fn from(e: InvalidLegacyPrefixError) -> Self {
-        Self::InvalidLegacyPrefix(e)
-    }
+    fn from(e: InvalidLegacyPrefixError) -> Self { Self::InvalidLegacyPrefix(e) }
 }
 
 impl From<NetworkValidationError> for ParseError {
-    fn from(e: NetworkValidationError) -> Self {
-        Self::NetworkValidation(e)
-    }
+    fn from(e: NetworkValidationError) -> Self { Self::NetworkValidation(e) }
 }
 
 /// Address's network differs from required one.

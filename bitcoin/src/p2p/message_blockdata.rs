@@ -126,7 +126,11 @@ pub struct GetHeadersMessage {
 
 impl GetBlocksMessage {
     /// Construct a new `getblocks` message
-    pub fn new(version: u32, locator_hashes: Vec<BlockHash>, stop_hash: BlockHash) -> GetBlocksMessage {
+    pub fn new(
+        version: u32,
+        locator_hashes: Vec<BlockHash>,
+        stop_hash: BlockHash,
+    ) -> GetBlocksMessage {
         GetBlocksMessage { version, locator_hashes, stop_hash }
     }
 }
@@ -135,7 +139,11 @@ impl_consensus_encoding!(GetBlocksMessage, version, locator_hashes, stop_hash);
 
 impl GetHeadersMessage {
     /// Construct a new `getheaders` message
-    pub fn new(version: u32, locator_hashes: Vec<BlockHash>, stop_hash: BlockHash) -> GetHeadersMessage {
+    pub fn new(
+        version: u32,
+        locator_hashes: Vec<BlockHash>,
+        stop_hash: BlockHash,
+    ) -> GetHeadersMessage {
         GetHeadersMessage { version, locator_hashes, stop_hash }
     }
 }

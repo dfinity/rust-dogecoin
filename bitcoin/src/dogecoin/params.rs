@@ -9,7 +9,6 @@
 use crate::dogecoin::Network;
 use crate::Target;
 
-
 const ONE_SECOND: i64 = 1;
 const ONE_MINUTE: i64 = 60;
 const FOUR_HOURS: i64 = 4 * 60 * 60;
@@ -81,61 +80,61 @@ impl Params {
     /// The mainnet parameters.
     /// Ref: <https://github.com/dogecoin/dogecoin/blob/2c513d0172e8bc86fe9a337693b26f2fdf68a013/src/chainparams.cpp#L75>
     pub const MAINNET: Params = Params {
-            network: Network::Dogecoin,
-            bip16_time: 1333238400,                 // Apr 1 2012
-            bip34_height: 1034383, // 80d1364201e5df97e696c03bdd24dc885e8617b9de51e453c10a4f629b1e797a
-            bip65_height: 3464751, // 34cd2cbba4ba366f47e5aa0db5f02c19eba2adf679ceb6653ac003bdc9a0ef1f
-            bip66_height: 1034383, // 80d1364201e5df97e696c03bdd24dc885e8617b9de51e453c10a4f629b1e797a
-            rule_change_activation_threshold: 9576, // 95% of 10,080
-            miner_confirmation_window: 10080, // 60 * 24 * 7 = 10,080 blocks, or one week
-            pow_limit: Target::MAX_ATTAINABLE_MAINNET_DOGE,
-            max_attainable_target: Target::MAX_ATTAINABLE_MAINNET_DOGE,
-            pow_target_spacing: ONE_MINUTE,           // 1 minute
-            no_pow_retargeting: false,
-            auxpow_height: 371_337,
-            strict_chain_id: true,
-            auxpow_chain_id: 0x0062,
-            digishield_activation_height: 145000,
+        network: Network::Dogecoin,
+        bip16_time: 1333238400,                 // Apr 1 2012
+        bip34_height: 1034383, // 80d1364201e5df97e696c03bdd24dc885e8617b9de51e453c10a4f629b1e797a
+        bip65_height: 3464751, // 34cd2cbba4ba366f47e5aa0db5f02c19eba2adf679ceb6653ac003bdc9a0ef1f
+        bip66_height: 1034383, // 80d1364201e5df97e696c03bdd24dc885e8617b9de51e453c10a4f629b1e797a
+        rule_change_activation_threshold: 9576, // 95% of 10,080
+        miner_confirmation_window: 10080, // 60 * 24 * 7 = 10,080 blocks, or one week
+        pow_limit: Target::MAX_ATTAINABLE_MAINNET_DOGE,
+        max_attainable_target: Target::MAX_ATTAINABLE_MAINNET_DOGE,
+        pow_target_spacing: ONE_MINUTE, // 1 minute
+        no_pow_retargeting: false,
+        auxpow_height: 371_337,
+        strict_chain_id: true,
+        auxpow_chain_id: 0x0062,
+        digishield_activation_height: 145000,
     };
 
     /// The Dogecoin testnet parameters.
     /// Ref: <https://github.com/dogecoin/dogecoin/blob/2c513d0172e8bc86fe9a337693b26f2fdf68a013/src/chainparams.cpp#L229>
     pub const TESTNET: Params = Params {
-            network: Network::Testnet,
-            bip16_time: 1333238400,                 // Apr 1 2012
-            bip34_height: 708658, // 21b8b97dcdb94caa67c7f8f6dbf22e61e0cfe0e46e1fff3528b22864659e9b38
-            bip65_height: 1854705, // 955bd496d23790aba1ecfacb722b089a6ae7ddabaedf7d8fb0878f48308a71f9
-            bip66_height: 708658, // 21b8b97dcdb94caa67c7f8f6dbf22e61e0cfe0e46e1fff3528b22864659e9b38
-            rule_change_activation_threshold: 2880, // 2 days (note this is significantly lower than Bitcoin standard)
-            miner_confirmation_window: 10080,       // 60 * 24 * 7 = 10,080 blocks, or one week
-            pow_limit: Target::MAX_ATTAINABLE_TESTNET_DOGE,
-            max_attainable_target: Target::MAX_ATTAINABLE_TESTNET_DOGE,
-            pow_target_spacing: ONE_MINUTE,           // 1 minute
-            no_pow_retargeting: false,
-            auxpow_height: 158_100,
-            strict_chain_id: false,
-            auxpow_chain_id: 0x0062,
-            digishield_activation_height: 145000,
+        network: Network::Testnet,
+        bip16_time: 1333238400,                 // Apr 1 2012
+        bip34_height: 708658, // 21b8b97dcdb94caa67c7f8f6dbf22e61e0cfe0e46e1fff3528b22864659e9b38
+        bip65_height: 1854705, // 955bd496d23790aba1ecfacb722b089a6ae7ddabaedf7d8fb0878f48308a71f9
+        bip66_height: 708658, // 21b8b97dcdb94caa67c7f8f6dbf22e61e0cfe0e46e1fff3528b22864659e9b38
+        rule_change_activation_threshold: 2880, // 2 days (note this is significantly lower than Bitcoin standard)
+        miner_confirmation_window: 10080,       // 60 * 24 * 7 = 10,080 blocks, or one week
+        pow_limit: Target::MAX_ATTAINABLE_TESTNET_DOGE,
+        max_attainable_target: Target::MAX_ATTAINABLE_TESTNET_DOGE,
+        pow_target_spacing: ONE_MINUTE, // 1 minute
+        no_pow_retargeting: false,
+        auxpow_height: 158_100,
+        strict_chain_id: false,
+        auxpow_chain_id: 0x0062,
+        digishield_activation_height: 145000,
     };
 
     /// The Dogecoin regtest parameters.
     /// Ref: <https://github.com/dogecoin/dogecoin/blob/2c513d0172e8bc86fe9a337693b26f2fdf68a013/src/chainparams.cpp#L382>
     pub const REGTEST: Params = Params {
-            network: Network::Regtest,
-            bip16_time: 1333238400,  // Apr 1 2012
-            bip34_height: 100000000, // not activated on regtest
-            bip65_height: 1351,
-            bip66_height: 1251,                    // used only in rpc tests
-            rule_change_activation_threshold: 540, // 75%
-            miner_confirmation_window: 720,
-            pow_limit: Target::MAX_ATTAINABLE_REGTEST_DOGE,
-            max_attainable_target: Target::MAX_ATTAINABLE_REGTEST_DOGE,
-            pow_target_spacing: ONE_SECOND,            // regtest: 1 second blocks
-            no_pow_retargeting: true,
-            auxpow_height: 20,
-            strict_chain_id: true,
-            auxpow_chain_id: 0x0062,
-            digishield_activation_height: 10,
+        network: Network::Regtest,
+        bip16_time: 1333238400,  // Apr 1 2012
+        bip34_height: 100000000, // not activated on regtest
+        bip65_height: 1351,
+        bip66_height: 1251,                    // used only in rpc tests
+        rule_change_activation_threshold: 540, // 75%
+        miner_confirmation_window: 720,
+        pow_limit: Target::MAX_ATTAINABLE_REGTEST_DOGE,
+        max_attainable_target: Target::MAX_ATTAINABLE_REGTEST_DOGE,
+        pow_target_spacing: ONE_SECOND, // regtest: 1 second blocks
+        no_pow_retargeting: true,
+        auxpow_height: 20,
+        strict_chain_id: true,
+        auxpow_chain_id: 0x0062,
+        digishield_activation_height: 10,
     };
 
     /// Creates parameters set for the given network.
@@ -149,7 +148,7 @@ impl Params {
 
     /// Checks if Digishield difficulty adjustment is activated at the given block height.
     pub const fn is_digishield_activated(&self, height: u32) -> bool {
-         height >= self.digishield_activation_height
+        height >= self.digishield_activation_height
     }
 
     /// Returns the target timespan (in seconds) used for PoW retargeting at the given block height.
@@ -173,15 +172,13 @@ impl Params {
                 0..=144_999 => true,
                 145_000..=157_499 => false,
                 157_500.. => true,
-            }
+            },
             Network::Regtest => true,
         }
     }
 
     /// Checks if legacy blocks can be mined at the given block height.
-    pub const fn allow_legacy_blocks(&self, height: u32) -> bool {
-        height < self.auxpow_height
-    }
+    pub const fn allow_legacy_blocks(&self, height: u32) -> bool { height < self.auxpow_height }
 }
 
 impl AsRef<Params> for Params {

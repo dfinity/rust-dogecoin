@@ -6,23 +6,24 @@
 //! network messages related to Dogecoin.
 
 pub mod address;
+pub mod auxpow;
 pub mod constants;
 pub mod params;
-pub mod auxpow;
+
+use core::fmt;
+use core::ops::{Deref, DerefMut};
 
 pub use address::*;
 
 use crate::block::{Header as PureHeader, TxMerkleNode, Version};
 use crate::consensus::{encode, Decodable, Encodable};
+use crate::dogecoin::auxpow::{AuxPow, VERSION_AUXPOW};
 use crate::dogecoin::params::Params;
 use crate::internal_macros::impl_consensus_encoding;
 use crate::io::{Read, Write};
 use crate::p2p::Magic;
 use crate::prelude::*;
 use crate::{io, BlockHash, Transaction};
-use core::fmt;
-use core::ops::{Deref, DerefMut};
-use crate::dogecoin::auxpow::{AuxPow, VERSION_AUXPOW};
 
 /// Dogecoin block header.
 ///
@@ -41,21 +42,15 @@ pub struct Header {
 
 impl Deref for Header {
     type Target = PureHeader;
-    fn deref(&self) -> &Self::Target {
-        &self.pure_header
-    }
+    fn deref(&self) -> &Self::Target { &self.pure_header }
 }
 
 impl DerefMut for Header {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.pure_header
-    }
+    fn deref_mut(&mut self) -> &mut Self::Target { &mut self.pure_header }
 }
 
 impl From<PureHeader> for Header {
-    fn from(pure_header: PureHeader) -> Self {
-        Self { pure_header, aux_pow: None }
-    }
+    fn from(pure_header: PureHeader) -> Self { Self { pure_header, aux_pow: None } }
 }
 
 impl Decodable for Header {
@@ -88,14 +83,10 @@ impl Encodable for Header {
 
 impl PureHeader {
     /// Checks if a block header indicates it was merged mined and contains AuxPow information.
-    pub fn has_auxpow_bit(&self) -> bool {
-        (self.version.to_consensus() & VERSION_AUXPOW) != 0
-    }
+    pub fn has_auxpow_bit(&self) -> bool { (self.version.to_consensus() & VERSION_AUXPOW) != 0 }
 
     /// Extracts the chain ID from the block header's version field.
-    pub fn extract_chain_id(&self) -> i32 {
-        self.version.to_consensus() >> 16
-    }
+    pub fn extract_chain_id(&self) -> i32 { self.version.to_consensus() >> 16 }
 
     /// Determines if a block header represents a legacy (pre-AuxPoW) block.
     pub fn is_legacy(&self) -> bool {
@@ -105,9 +96,7 @@ impl PureHeader {
     }
 
     /// Extracts the base version number from a block header, removing AuxPoW and chain ID bits.
-    pub fn extract_base_version(&self) -> i32 {
-        self.version.to_consensus() % VERSION_AUXPOW
-    }
+    pub fn extract_base_version(&self) -> i32 { self.version.to_consensus() % VERSION_AUXPOW }
 }
 
 /// Dogecoin block.
@@ -151,10 +140,7 @@ impl Block {
 
     /// Compute merkle root of the transaction list in this block.
     pub fn compute_merkle_root(&self) -> Option<TxMerkleNode> {
-        let hashes = self
-            .txdata
-            .iter()
-            .map(|obj| obj.compute_txid().to_raw_hash());
+        let hashes = self.txdata.iter().map(|obj| obj.compute_txid().to_raw_hash());
         crate::merkle_tree::calculate_root(hashes).map(|h| h.into())
     }
 }
@@ -197,9 +183,7 @@ impl Network {
 }
 
 impl AsRef<Params> for Network {
-    fn as_ref(&self) -> &Params {
-        self.params()
-    }
+    fn as_ref(&self) -> &Params { self.params() }
 }
 
 impl fmt::Display for Network {
@@ -227,13 +211,13 @@ impl core::str::FromStr for Network {
 
 #[cfg(test)]
 mod tests {
-    use hex::{test_hex_unwrap as hex};
     use hashes::Hash;
+    use hex::test_hex_unwrap as hex;
+
     use super::*;
     use crate::block::{ValidationError, Version};
     use crate::consensus::encode::{deserialize, serialize};
-    use crate::{CompactTarget, Target, Work};
-    use crate::{Network as BitcoinNetwork};
+    use crate::{CompactTarget, Network as BitcoinNetwork, Target, Work};
 
     #[test]
     fn dogecoin_block_test() {
@@ -436,8 +420,13 @@ mod tests {
         let height = 480;
         let params = Params::new(Network::Dogecoin);
         let starting_bits = CompactTarget::from_consensus(0x1e0fffff); // Max target
-        let timespan =  4 * params.pow_target_timespan(height); // 4x Slower than expected
-        let got = CompactTarget::from_next_work_required_dogecoin(starting_bits, timespan, &params, height);
+        let timespan = 4 * params.pow_target_timespan(height); // 4x Slower than expected
+        let got = CompactTarget::from_next_work_required_dogecoin(
+            starting_bits,
+            timespan,
+            &params,
+            height,
+        );
         let want = params.max_attainable_target.to_compact_lossy();
         assert_eq!(got, want);
     }
@@ -447,8 +436,13 @@ mod tests {
         let height = 145_000;
         let params = Params::new(Network::Dogecoin);
         let starting_bits = CompactTarget::from_consensus(0x1e0fffff); // Max target
-        let timespan =  5 * params.pow_target_timespan(height); // 5x Slower than expected
-        let got = CompactTarget::from_next_work_required_dogecoin(starting_bits, timespan, &params, height);
+        let timespan = 5 * params.pow_target_timespan(height); // 5x Slower than expected
+        let got = CompactTarget::from_next_work_required_dogecoin(
+            starting_bits,
+            timespan,
+            &params,
+            height,
+        );
         let want = params.max_attainable_target.to_compact_lossy();
         assert_eq!(got, want);
     }
@@ -460,8 +454,13 @@ mod tests {
         let starting_bits = CompactTarget::from_consensus(0x1b02f5b6); // Arbitrary difficulty
         let params = Params::new(Network::Dogecoin);
         for height in pre_digishield_heights {
-            let timespan =  4 * params.pow_target_timespan(height); // 4x Slower than expected
-            let got = CompactTarget::from_next_work_required_dogecoin(starting_bits, timespan, &params, height);
+            let timespan = 4 * params.pow_target_timespan(height); // 4x Slower than expected
+            let got = CompactTarget::from_next_work_required_dogecoin(
+                starting_bits,
+                timespan,
+                &params,
+                height,
+            );
             let want = Target::from_compact(starting_bits)
                 .max_transition_threshold_dogecoin(&params, height)
                 .to_compact_lossy();
@@ -469,7 +468,12 @@ mod tests {
         }
         for height in digishield_heights {
             let timespan = 5 * params.pow_target_timespan(height); // 5x Slower than expected
-            let got = CompactTarget::from_next_work_required_dogecoin(starting_bits, timespan, &params, height);
+            let got = CompactTarget::from_next_work_required_dogecoin(
+                starting_bits,
+                timespan,
+                &params,
+                height,
+            );
             let want = Target::from_compact(starting_bits)
                 .max_transition_threshold_dogecoin(&params, height)
                 .to_compact_lossy();
@@ -611,21 +615,23 @@ mod tests {
                 merkle_root: TxMerkleNode::all_zeros(),
                 time: test_case.start_time as u32,
                 bits: CompactTarget::from_consensus(0x1e0fffff), // Note: this value does not matter
-                nonce: 0
-            }.into();
+                nonce: 0,
+            }
+            .into();
             let end_header = PureHeader {
                 version: Version::ONE,
                 prev_blockhash: BlockHash::all_zeros(),
                 merkle_root: TxMerkleNode::all_zeros(),
                 time: test_case.end_time as u32,
                 bits: test_case.starting_bits,
-                nonce: 0
-            }.into();
+                nonce: 0,
+            }
+            .into();
             let adjustment = CompactTarget::from_header_difficulty_adjustment_dogecoin(
                 start_header,
                 end_header,
                 &params,
-                test_case.height
+                test_case.height,
             );
             assert_eq!(
                 adjustment, test_case.expected_adjustment_bits,
@@ -643,7 +649,12 @@ mod tests {
         let params = Params::new(Network::Dogecoin);
         for height in pre_digishield_heights {
             let timespan = (0.06 * params.pow_target_timespan(height) as f64) as i64; // > 16x Faster than expected
-            let got = CompactTarget::from_next_work_required_dogecoin(starting_bits, timespan, &params, height);
+            let got = CompactTarget::from_next_work_required_dogecoin(
+                starting_bits,
+                timespan,
+                &params,
+                height,
+            );
             let want = Target::from_compact(starting_bits)
                 .min_transition_threshold_dogecoin(&params, height)
                 .to_compact_lossy();
@@ -651,7 +662,12 @@ mod tests {
         }
         for height in digishield_heights {
             let timespan = -params.pow_target_timespan(height); // Negative timespan
-            let got = CompactTarget::from_next_work_required_dogecoin(starting_bits, timespan, &params, height);
+            let got = CompactTarget::from_next_work_required_dogecoin(
+                starting_bits,
+                timespan,
+                &params,
+                height,
+            );
             let want = Target::from_compact(starting_bits)
                 .min_transition_threshold_dogecoin(&params, height)
                 .to_compact_lossy();
