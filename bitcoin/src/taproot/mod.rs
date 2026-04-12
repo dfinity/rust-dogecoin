@@ -1556,7 +1556,11 @@ mod test {
         let control_block =
             ControlBlock::decode(&Vec::<u8>::from_hex(control_block_hex).unwrap()).unwrap();
         assert_eq!(control_block_hex, control_block.serialize().to_lower_hex_string());
-        assert!(control_block.verify_taproot_commitment(secp, out_pk.to_x_only_public_key(), &script));
+        assert!(control_block.verify_taproot_commitment(
+            secp,
+            out_pk.to_x_only_public_key(),
+            &script
+        ));
     }
 
     #[test]

@@ -18,12 +18,12 @@ use crate::{
     TxMerkleNode, TxOut, Witness,
 };
 
-pub(crate) const PUBKEY_ADDRESS_PREFIX_MAINNET : u8 = 0x1e;
-pub(crate) const PUBKEY_ADDRESS_PREFIX_TESTNET : u8 = 0x71;
-pub(crate) const PUBKEY_ADDRESS_PREFIX_REGTEST : u8 = 0x6f;
-pub(crate) const SCRIPT_ADDRESS_PREFIX_MAINNET : u8 = 0x16;
-pub(crate) const SCRIPT_ADDRESS_PREFIX_TESTNET : u8 = 0xc4;
-pub(crate) const SCRIPT_ADDRESS_PREFIX_REGTEST : u8 = 0xc4;
+pub(crate) const PUBKEY_ADDRESS_PREFIX_MAINNET: u8 = 0x1e;
+pub(crate) const PUBKEY_ADDRESS_PREFIX_TESTNET: u8 = 0x71;
+pub(crate) const PUBKEY_ADDRESS_PREFIX_REGTEST: u8 = 0x6f;
+pub(crate) const SCRIPT_ADDRESS_PREFIX_MAINNET: u8 = 0x16;
+pub(crate) const SCRIPT_ADDRESS_PREFIX_TESTNET: u8 = 0xc4;
+pub(crate) const SCRIPT_ADDRESS_PREFIX_REGTEST: u8 = 0xc4;
 
 // This is the 65 byte (uncompressed) pubkey used as the one-and-only output of the genesis transaction.
 //
@@ -90,7 +90,8 @@ pub fn genesis_block(params: impl AsRef<Params>) -> Block {
                 time: 1386325540,
                 bits: CompactTarget::from_consensus(0x1e0ffff0),
                 nonce: 99943,
-            }.into(),
+            }
+            .into(),
             txdata,
         },
         Network::Testnet => Block {
@@ -101,7 +102,8 @@ pub fn genesis_block(params: impl AsRef<Params>) -> Block {
                 time: 1391503289,
                 bits: CompactTarget::from_consensus(0x1e0ffff0),
                 nonce: 997879,
-            }.into(),
+            }
+            .into(),
             txdata,
         },
         Network::Regtest => Block {
@@ -112,7 +114,8 @@ pub fn genesis_block(params: impl AsRef<Params>) -> Block {
                 time: 1296688602,
                 bits: CompactTarget::from_consensus(0x207fffff),
                 nonce: 2,
-            }.into(),
+            }
+            .into(),
             txdata,
         },
     }

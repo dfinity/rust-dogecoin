@@ -312,14 +312,10 @@ impl<Header: Encodable, Block: Encodable> RawNetworkMessage<Header, Block> {
     }
 
     /// Consumes the [RawNetworkMessage] instance and returns the inner payload.
-    pub fn into_payload(self) -> NetworkMessage<Header, Block> {
-        self.payload
-    }
+    pub fn into_payload(self) -> NetworkMessage<Header, Block> { self.payload }
 
     /// The actual message data
-    pub fn payload(&self) -> &NetworkMessage<Header, Block> {
-        &self.payload
-    }
+    pub fn payload(&self) -> &NetworkMessage<Header, Block> { &self.payload }
 
     /// Magic bytes to identify the network these messages are meant for
     pub fn magic(&self) -> &Magic { &self.magic }
@@ -544,6 +540,7 @@ impl<Header: Decodable, Block: Decodable> Decodable for RawNetworkMessage<Header
 mod test {
     use std::net::Ipv4Addr;
 
+    use block::{Block, Header};
     use hashes::sha256d::Hash;
     use hashes::Hash as HashTrait;
     use hex::test_hex_unwrap as hex;
@@ -563,19 +560,18 @@ mod test {
         CFCheckpt, CFHeaders, CFilter, GetCFCheckpt, GetCFHeaders, GetCFilters,
     };
     use crate::p2p::ServiceFlags;
-    use block::{Block, Header};
 
     type NetworkMessage = super::NetworkMessage<Header, Block>;
     type RawNetworkMessage = super::RawNetworkMessage<Header, Block>;
 
-    fn hash(slice: [u8; 32]) -> Hash {
-        Hash::from_slice(&slice).unwrap()
-    }
+    fn hash(slice: [u8; 32]) -> Hash { Hash::from_slice(&slice).unwrap() }
 
     #[test]
     fn dogecoin_ser_der_raw_network_message_test() {
-        type NetworkMessage = super::NetworkMessage<crate::dogecoin::Header, crate::dogecoin::Block>;
-        type RawNetworkMessage = super::RawNetworkMessage<crate::dogecoin::Header, crate::dogecoin::Block>;
+        type NetworkMessage =
+            super::NetworkMessage<crate::dogecoin::Header, crate::dogecoin::Block>;
+        type RawNetworkMessage =
+            super::RawNetworkMessage<crate::dogecoin::Header, crate::dogecoin::Block>;
 
         // Dogecoin mainnet block 62959fd2246701d38917fe59920523ad66111b68e360fe3a60ebdca2dd6d4546 (height 1000013)
         let bytes = hex!("03016200916a0b2966c72c1bb533469388c7e5d771e0d5570e897fe98453baa8226c2d7e9d73ce00d335ed419b390659c89e3af25ab2ffc8db0f1144cbf2ab8867b140e23dbe6d569e42031b0000000001000000010000000000000000000000000000000000000000000000000000000000000000ffffffff3f0359c90d04566dbe3d2cfabe6d6df5cee89f3766065a3f9ddc4ab57a1adf830944af0ef431e9d4f59c2f4e8985e70800000000000000085600096a01000000ffffffff0100f90295000000001976a91457757ed3d226faf12bd43983896ec81e7fca369a88ac0000000010ce3fcdb40c53bb040487a2ff745a7384314d4c24809aba52a35c74a5be4ca5000000000003d7bec81d9cd6968e141a0d0c1645b9dcca96ab9fb57dbc6f63a4ef669a0ad099de79681c0a67d2f2de006742ab85320b9ecc7df8f9979eff946d1f6964d3ab5956b1698e938dbe001e487469ad0c84c1b008757a7a78908378db499a602949bd00000000030000005d24356ff4b4111265187fd2e89dc7e58019221fba2e4ad0ec789ed38bfd9be152ac7cf211bf53770edf319ccc29cf8692076446430a195ed1c55ad458612d1e3dbe6d56f542011b3a4a43490101000000010000000000000000000000000000000000000000000000000000000000000000ffffffff09034d420f04566dbe3dffffffff010010a5d4e80000001976a914d1895519d5281aa005487b1ff07f3307aced8d6e88ac00000000");
@@ -586,10 +582,7 @@ mod test {
         assert!(header.aux_pow.is_some());
 
         // Test only Block and Header messages, which are different than Bitcoin.
-        let msgs = vec![
-            NetworkMessage::Block(block),
-            NetworkMessage::Headers(vec![header]),
-        ];
+        let msgs = vec![NetworkMessage::Block(block), NetworkMessage::Headers(vec![header])];
 
         for msg in msgs {
             let raw_msg = RawNetworkMessage::new(Magic::from_bytes([57, 0, 0, 0]), msg);

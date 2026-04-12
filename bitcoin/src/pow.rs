@@ -19,8 +19,11 @@ use crate::block::Header;
 use crate::blockdata::block::BlockHash;
 use crate::consensus::encode::{self, Decodable, Encodable};
 use crate::consensus::Params;
-use crate::dogecoin::{params::Params as DogecoinParams, Header as DogecoinHeader};
-use crate::error::{ContainsPrefixError, MissingPrefixError, ParseIntError, PrefixedHexError, UnprefixedHexError};
+use crate::dogecoin::params::Params as DogecoinParams;
+use crate::dogecoin::Header as DogecoinHeader;
+use crate::error::{
+    ContainsPrefixError, MissingPrefixError, ParseIntError, PrefixedHexError, UnprefixedHexError,
+};
 
 /// Implement traits and methods shared by `Target` and `Work`.
 macro_rules! do_impl {
@@ -324,13 +327,17 @@ impl Target {
     /// difficulty adjustment period, depending on the height.
     ///
     /// Digishield: The target can decrease by 25 % max of the previous target in one adjustment.
-    /// 
+    ///
     /// ref: <https://github.com/dogecoin/dogecoin/blob/2c513d0172e8bc86fe9a337693b26f2fdf68a013/src/dogecoin.cpp#L50-L66>
     ///
     /// # Returns
     ///
     /// In line with Dogecoin Core this function may return a target value of zero.
-    pub fn min_transition_threshold_dogecoin(&self, params: impl AsRef<DogecoinParams>, height: u32) -> Self {
+    pub fn min_transition_threshold_dogecoin(
+        &self,
+        params: impl AsRef<DogecoinParams>,
+        height: u32,
+    ) -> Self {
         if params.as_ref().is_digishield_activated(height) {
             Self(self.0 - (self.0 >> 2))
         } else {
@@ -365,7 +372,11 @@ impl Target {
     ///
     /// We also check that the calculated target is not greater than the maximum allowed target,
     /// this value is network specific - hence the `params` parameter.
-    pub fn max_transition_threshold_dogecoin(&self, params: impl AsRef<DogecoinParams>, height: u32) -> Self {
+    pub fn max_transition_threshold_dogecoin(
+        &self,
+        params: impl AsRef<DogecoinParams>,
+        height: u32,
+    ) -> Self {
         let max_attainable = params.as_ref().max_attainable_target;
         if params.as_ref().is_digishield_activated(height) {
             cmp::min(Self(self.0 + (self.0 >> 1)), max_attainable)
@@ -491,7 +502,7 @@ impl CompactTarget {
         last: CompactTarget,
         timespan: i64,
         params: impl AsRef<DogecoinParams>,
-        height: u32
+        height: u32,
     ) -> CompactTarget {
         let params = params.as_ref();
         if params.no_pow_retargeting {
@@ -501,14 +512,16 @@ impl CompactTarget {
         // ref: <https://github.com/dogecoin/dogecoin/blob/51cbc1fd5d0d045dda2ad84f53572bbf524c6a8e/src/dogecoin.cpp>
         let retarget_timespan = params.pow_target_timespan(height); // Line 44
         let mut modulated_timespan = timespan; // Lines 45-46
-        if params.is_digishield_activated(height) { // Lines 50-56
+        if params.is_digishield_activated(height) {
+            // Lines 50-56
             modulated_timespan = retarget_timespan + (modulated_timespan - retarget_timespan) / 8; // Line 53
             let (min_timespan, max_timespan) = (
                 retarget_timespan - (retarget_timespan >> 2),
                 retarget_timespan + (retarget_timespan >> 1),
             );
             modulated_timespan = modulated_timespan.clamp(min_timespan, max_timespan); // Lines 69-72
-        } else { // Lines 57-66
+        } else {
+            // Lines 57-66
             let max_timespan = retarget_timespan << 2;
             let min_timespan = match height {
                 0..=5_000 => retarget_timespan >> 4,
@@ -567,7 +580,7 @@ impl CompactTarget {
     /// # Note
     ///
     /// See [`CompactTarget::from_next_work_required_dogecoin`].
-    /// 
+    ///
     /// Unlike Bitcoin, Dogecoin uses overlapping intervals (see Time Wrap Attack bug fix
     /// introduced by Litecoin).
     ///
@@ -585,7 +598,7 @@ impl CompactTarget {
         last_epoch_boundary: DogecoinHeader,
         current: DogecoinHeader,
         params: impl AsRef<DogecoinParams>,
-        height: u32
+        height: u32,
     ) -> CompactTarget {
         let timespan = (current.time as i64) - (last_epoch_boundary.time as i64);
         let bits = current.bits;
@@ -1949,8 +1962,11 @@ mod tests {
 
     #[test]
     fn compact_target_from_upwards_difficulty_adjustment_using_headers() {
-        use crate::{block::Version, constants::genesis_block, TxMerkleNode};
         use hashes::Hash;
+
+        use crate::block::Version;
+        use crate::constants::genesis_block;
+        use crate::TxMerkleNode;
         let params = Params::new(crate::Network::Signet);
         let epoch_start = genesis_block(&params).header;
         // Block 2015, the only information used are `bits` and `time`
@@ -1960,27 +1976,30 @@ mod tests {
             merkle_root: TxMerkleNode::all_zeros(),
             time: 1599332177,
             bits: epoch_start.bits,
-            nonce: epoch_start.nonce
+            nonce: epoch_start.nonce,
         };
-        let adjustment = CompactTarget::from_header_difficulty_adjustment(epoch_start, current, params);
+        let adjustment =
+            CompactTarget::from_header_difficulty_adjustment(epoch_start, current, params);
         let adjustment_bits = CompactTarget::from_consensus(503394215); // Block 2016 compact target
         assert_eq!(adjustment, adjustment_bits);
     }
 
     #[test]
     fn compact_target_from_downwards_difficulty_adjustment_using_headers() {
-        use crate::{block::Version, TxMerkleNode};
         use hashes::Hash;
+
+        use crate::block::Version;
+        use crate::TxMerkleNode;
         let params = Params::new(crate::Network::Signet);
         let starting_bits = CompactTarget::from_consensus(503394215); // Block 2016 compact target
-        // Block 2016, the only information used is `time`
+                                                                      // Block 2016, the only information used is `time`
         let epoch_start = Header {
             version: Version::ONE,
             prev_blockhash: BlockHash::all_zeros(),
             merkle_root: TxMerkleNode::all_zeros(),
             time: 1599332844,
             bits: starting_bits,
-            nonce: 0
+            nonce: 0,
         };
         // Block 4031, the only information used are `bits` and `time`
         let current = Header {
@@ -1989,9 +2008,10 @@ mod tests {
             merkle_root: TxMerkleNode::all_zeros(),
             time: 1600591200,
             bits: starting_bits,
-            nonce: 0
+            nonce: 0,
         };
-        let adjustment = CompactTarget::from_header_difficulty_adjustment(epoch_start, current, params);
+        let adjustment =
+            CompactTarget::from_header_difficulty_adjustment(epoch_start, current, params);
         let adjustment_bits = CompactTarget::from_consensus(503397348); // Block 4032 compact target
         assert_eq!(adjustment, adjustment_bits);
     }
@@ -2002,9 +2022,8 @@ mod tests {
         let starting_bits = CompactTarget::from_consensus(503403001);
         let timespan = (0.2 * params.pow_target_timespan as f64) as u64;
         let got = CompactTarget::from_next_work_required(starting_bits, timespan, params);
-        let want = Target::from_compact(starting_bits)
-            .min_transition_threshold()
-            .to_compact_lossy();
+        let want =
+            Target::from_compact(starting_bits).min_transition_threshold().to_compact_lossy();
         assert_eq!(got, want);
     }
 
@@ -2012,11 +2031,10 @@ mod tests {
     fn compact_target_from_minimum_downward_difficulty_adjustment() {
         let params = Params::new(crate::Network::Signet);
         let starting_bits = CompactTarget::from_consensus(403403001); // High difficulty for Signet
-        let timespan =  5 * params.pow_target_timespan; // Really slow.
+        let timespan = 5 * params.pow_target_timespan; // Really slow.
         let got = CompactTarget::from_next_work_required(starting_bits, timespan, &params);
-        let want = Target::from_compact(starting_bits)
-            .max_transition_threshold(params)
-            .to_compact_lossy();
+        let want =
+            Target::from_compact(starting_bits).max_transition_threshold(params).to_compact_lossy();
         assert_eq!(got, want);
     }
 
@@ -2024,7 +2042,7 @@ mod tests {
     fn compact_target_from_adjustment_is_max_target() {
         let params = Params::new(crate::Network::Signet);
         let starting_bits = CompactTarget::from_consensus(503543726); // Genesis compact target on Signet
-        let timespan =  5 * params.pow_target_timespan; // Really slow.
+        let timespan = 5 * params.pow_target_timespan; // Really slow.
         let got = CompactTarget::from_next_work_required(starting_bits, timespan, &params);
         let want = params.max_attainable_target.to_compact_lossy();
         assert_eq!(got, want);

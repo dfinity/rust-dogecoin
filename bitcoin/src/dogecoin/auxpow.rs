@@ -1039,7 +1039,9 @@ mod tests {
             BlockHash::from_str("283fa35edb604a913ead7e776b534f1661723da6721131eee75a39738ed2e8f8")
                 .unwrap();
 
-        assert!(auxpow_mainnet_2_679_506.check(aux_block_hash, AUXPOW_BLOCK_CHAIN_ID, true).is_ok());
+        assert!(auxpow_mainnet_2_679_506
+            .check(aux_block_hash, AUXPOW_BLOCK_CHAIN_ID, true)
+            .is_ok());
     }
 
     #[test]
@@ -1116,7 +1118,9 @@ mod tests {
             BlockHash::from_str("6aae55bea74235f0c80bd066349d4440c31f2d0f27d54265ecd484d8c1d11b47")
                 .unwrap();
 
-        assert!(auxpow_mainnet_1_000_000.check(aux_block_hash, AUXPOW_BLOCK_CHAIN_ID, true).is_ok());
+        assert!(auxpow_mainnet_1_000_000
+            .check(aux_block_hash, AUXPOW_BLOCK_CHAIN_ID, true)
+            .is_ok());
     }
 
     #[test]
@@ -1149,23 +1153,23 @@ mod tests {
             TxMerkleNode::from_str(
                 "2f7aeb2615e5251d107339a2e4d7177ac341f71b2d0d5931695f6133a64f497e",
             )
-                .unwrap(),
+            .unwrap(),
             TxMerkleNode::from_str(
                 "c9d13f7eb2a2fc00f6d4a4f941c214868ae508a2c410eee2e37936d742167d0c",
             )
-                .unwrap(),
+            .unwrap(),
             TxMerkleNode::from_str(
                 "bc82db9b6fd74cfba991bc2e422f6db3f2d6916053fcc6feaa5eca588b8bff1c",
             )
-                .unwrap(),
+            .unwrap(),
             TxMerkleNode::from_str(
                 "be46c579c5859312688104b479e2527058a5da9ce9dd5f7ef4247cfa3384ca99",
             )
-                .unwrap(),
+            .unwrap(),
             TxMerkleNode::from_str(
                 "f9813969c631dcd4c536fa7f5f371d840c8270644651d3c2536fb5abb0d846c2",
             )
-                .unwrap(),
+            .unwrap(),
         ];
 
         let blockchain_branch = vec![];
@@ -1184,6 +1188,8 @@ mod tests {
             BlockHash::from_str("10b320f69f1eb5e1b7bb45fbc108e4379b5a77dee5a3b0a406038989b9641539")
                 .unwrap();
 
-        assert!(auxpow_mainnet_1_731_044.check(aux_block_hash, AUXPOW_BLOCK_CHAIN_ID, true).is_ok());
+        assert!(auxpow_mainnet_1_731_044
+            .check(aux_block_hash, AUXPOW_BLOCK_CHAIN_ID, true)
+            .is_ok());
     }
 }

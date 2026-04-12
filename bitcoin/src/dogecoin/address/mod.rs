@@ -205,9 +205,7 @@ struct DisplayUnchecked<'a, N: NetworkValidation>(&'a Address<N>);
 
 #[cfg(feature = "serde")]
 impl<N: NetworkValidation> fmt::Display for DisplayUnchecked<'_, N> {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Display::fmt(&self.0 .0, fmt)
-    }
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result { fmt::Display::fmt(&self.0 .0, fmt) }
 }
 
 #[cfg(feature = "serde")]
@@ -232,9 +230,7 @@ impl<V: NetworkValidation> Address<V> {
     }
 
     /// Marks the network of this address as unchecked.
-    pub fn into_unchecked(self) -> Address<NetworkUnchecked> {
-        Address(self.0, PhantomData)
-    }
+    pub fn into_unchecked(self) -> Address<NetworkUnchecked> { Address(self.0, PhantomData) }
 }
 
 /// Methods and functions that can be called only on `Address<NetworkChecked>`.
@@ -360,12 +356,10 @@ impl Address {
     pub fn matches_script_pubkey(&self, script: &Script) -> bool {
         use AddressInner::*;
         match self.0 {
-            P2pkh { ref hash, network: _ } if script.is_p2pkh() => {
-                &script.as_bytes()[3..23] == <PubkeyHash as AsRef<[u8; 20]>>::as_ref(hash)
-            }
-            P2sh { ref hash, network: _ } if script.is_p2sh() => {
-                &script.as_bytes()[2..22] == <ScriptHash as AsRef<[u8; 20]>>::as_ref(hash)
-            }
+            P2pkh { ref hash, network: _ } if script.is_p2pkh() =>
+                &script.as_bytes()[3..23] == <PubkeyHash as AsRef<[u8; 20]>>::as_ref(hash),
+            P2sh { ref hash, network: _ } if script.is_p2sh() =>
+                &script.as_bytes()[2..22] == <ScriptHash as AsRef<[u8; 20]>>::as_ref(hash),
             P2pkh { .. } | P2sh { .. } => false,
         }
     }
@@ -428,12 +422,10 @@ impl Address<NetworkUnchecked> {
         match self.0 {
             P2pkh { hash: _, ref network } => *network == n,
             P2sh { hash: _, network: Network::Dogecoin } => n == Network::Dogecoin,
-            P2sh { hash: _, network: Network::Testnet } => {
-                n == Network::Testnet || n == Network::Regtest
-            }
-            P2sh { hash: _, network: Network::Regtest } => {
-                n == Network::Testnet || n == Network::Regtest
-            }
+            P2sh { hash: _, network: Network::Testnet } =>
+                n == Network::Testnet || n == Network::Regtest,
+            P2sh { hash: _, network: Network::Regtest } =>
+                n == Network::Testnet || n == Network::Regtest,
         }
     }
 
@@ -495,23 +487,17 @@ impl Address<NetworkUnchecked> {
     /// For details about this mechanism, see section [*Parsing addresses*](Address#parsing-addresses)
     /// on [`Address`].
     #[inline]
-    pub fn assume_checked(self) -> Address {
-        Address(self.0, PhantomData)
-    }
+    pub fn assume_checked(self) -> Address { Address(self.0, PhantomData) }
 }
 
 impl From<Address> for script::ScriptBuf {
-    fn from(a: Address) -> Self {
-        a.script_pubkey()
-    }
+    fn from(a: Address) -> Self { a.script_pubkey() }
 }
 
 // Alternate formatting `{:#}` is used to return uppercase version of bech32 addresses which should
 // be used in QR codes, see [`Address::to_qr_uri`].
 impl fmt::Display for Address {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Display::fmt(&self.0, fmt)
-    }
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result { fmt::Display::fmt(&self.0, fmt) }
 }
 
 impl<V: NetworkValidation> fmt::Debug for Address<V> {
